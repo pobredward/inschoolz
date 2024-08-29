@@ -91,7 +91,7 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
 
   const handleSearch = async () => {
     if (searchTerm.length < 2) {
-      setError("검색어는 2글자 이상이어야 합니다.");
+      setError("검색어는 2글자 이상이어야 합니다");
       return;
     }
 
