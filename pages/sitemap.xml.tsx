@@ -99,7 +99,6 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
         <news:publication_date>${lastmod}</news:publication_date>
         <news:title>${title}</news:title>
         <news:keywords>${keywords}</news:keywords>
-        <news:description>${content}</news:description>
       </news:news>
       <xhtml:link rel="alternate" hreflang="ko" href="${url}"/>
       <xhtml:link rel="alternate" hreflang="x-default" href="${url}"/>
