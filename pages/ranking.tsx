@@ -15,6 +15,7 @@ import { db } from "../lib/firebase";
 import Layout from "../components/Layout";
 import { useAuth } from "../hooks/useAuth";
 import { FaUserCircle } from "react-icons/fa";
+import Head from "next/head";
 
 interface UserRank {
   userId: string;
@@ -55,7 +56,7 @@ const RankingPage: React.FC = () => {
           usersRef,
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
-          limit(ITEMS_PER_PAGE),
+          limit(ITEMS_PER_PAGE)
         );
       } else if (lastVisible) {
         q = query(
@@ -63,7 +64,7 @@ const RankingPage: React.FC = () => {
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
           startAfter(lastVisible),
-          limit(ITEMS_PER_PAGE),
+          limit(ITEMS_PER_PAGE)
         );
       } else {
         return; // Cannot fetch data without lastVisible
@@ -75,7 +76,7 @@ const RankingPage: React.FC = () => {
           where("schoolId", "==", user.schoolId),
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
-          limit(ITEMS_PER_PAGE),
+          limit(ITEMS_PER_PAGE)
         );
       } else if (lastVisible) {
         q = query(
@@ -84,7 +85,7 @@ const RankingPage: React.FC = () => {
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
           startAfter(lastVisible),
-          limit(ITEMS_PER_PAGE),
+          limit(ITEMS_PER_PAGE)
         );
       } else {
         return; // Cannot fetch data without lastVisible
@@ -126,7 +127,7 @@ const RankingPage: React.FC = () => {
     if (!searchTerm) return;
 
     const filteredData = rankings.filter((entry) =>
-      entry.userId.toLowerCase().includes(searchTerm.toLowerCase()),
+      entry.userId.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     setRankings(filteredData);
@@ -163,6 +164,15 @@ const RankingPage: React.FC = () => {
 
   return (
     <Layout>
+      <Head>
+        <title>랭킹</title>
+        <meta property="og:title" content="랭킹" />
+        <meta
+          property="og:description"
+          content="다양한 학교에 속한 학생들의 순위를 확인하세요."
+        />
+        <meta property="og:url" content="https://www.inschoolz.com/ranking" />
+      </Head>
       <RankingContainer>
         {/* <h1>랭킹</h1> */}
         <TabContainer>

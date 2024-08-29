@@ -125,7 +125,36 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
             xmlns:xhtml="http://www.w3.org/1999/xhtml"
             xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
             xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
-      ${staticPages}
+            <url>
+            <loc>https://www.inschoolz.com/</loc>
+            <lastmod>2024-08-29</lastmod>
+            <changefreq>daily</changefreq>
+            <priority>1.0</priority>
+          </url>
+          <url>
+            <loc>https://www.inschoolz.com/community</loc>
+            <lastmod>2024-08-29</lastmod>
+            <changefreq>daily</changefreq>
+            <priority>0.8</priority>
+          </url>
+          <url>
+            <loc>https://www.inschoolz.com/ranking</loc>
+            <lastmod>2024-08-29</lastmod>
+            <changefreq>daily</changefreq>
+            <priority>0.8</priority>
+          </url>
+          <url>
+            <loc>https://www.inschoolz.com/minigame</loc>
+            <lastmod>2024-08-29</lastmod>
+            <changefreq>weekly</changefreq>
+            <priority>0.7</priority>
+          </url>
+          <url>
+            <loc>https://www.inschoolz.com/login</loc>
+            <lastmod>2024-08-29</lastmod>
+            <changefreq>monthly</changefreq>
+            <priority>0.6</priority>
+          </url>
       ${dynamicPages}
     </urlset>`;
 

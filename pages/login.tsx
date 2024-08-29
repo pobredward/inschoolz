@@ -9,6 +9,7 @@ import { useMutation } from "react-query";
 import { useAuthStateManager } from "../hooks/useAuthStateManager";
 import { errorMessages } from "../utils/errorMessages";
 import { auth } from "../lib/firebase";
+import Head from "next/head";
 
 const LoginPage: React.FC = () => {
   const [userId, setUserId] = useState("");
@@ -40,7 +41,7 @@ const LoginPage: React.FC = () => {
       onError: (error: Error) => {
         setError(error.message || errorMessages.UNKNOWN_ERROR);
       },
-    },
+    }
   );
 
   const handleLogin = (e: React.FormEvent) => {
@@ -50,6 +51,15 @@ const LoginPage: React.FC = () => {
 
   return (
     <Layout>
+      <Head>
+        <title>로그인</title>
+        <meta property="og:title" content="로그인" />
+        <meta
+          property="og:description"
+          content="로그인 후 다양한 서비스를 이용하세요."
+        />
+        <meta property="og:url" content="https://www.inschoolz.com/login" />
+      </Head>
       <LoginContainer>
         <h1>로그인</h1>
         <Form onSubmit={handleLogin}>

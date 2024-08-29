@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /community
+Allow: /ranking
+Allow: /game
+Allow: /login
 
 Sitemap: https://inschoolz.com/sitemap.xml

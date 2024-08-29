@@ -9,6 +9,7 @@ import {
   getExperienceSettings,
   ExperienceSettings,
 } from "../../utils/experience";
+import Head from "next/head";
 
 const GamePage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -37,6 +38,18 @@ const GamePage: React.FC = () => {
 
   return (
     <Layout>
+      <Head>
+        <title>미니게임</title>
+        <meta
+          property="og:title"
+          content="미니게임"
+        />
+        <meta
+          property="og:description"
+          content="다른 학교 친구들과 미니게임을 통해 경쟁하세요."
+        />
+        <meta property="og:url" content="https://www.inschoolz.com/game" />
+      </Head>
       <GameContainer>
         <TitleContainer>
           <GameTitle>미니게임</GameTitle>
