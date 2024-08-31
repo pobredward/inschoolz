@@ -1,4 +1,6 @@
 import { GetServerSideProps } from "next";
+import { db } from "../lib/firebase";
+import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
 const Sitemap = () => {
   return null;
@@ -7,26 +9,45 @@ const Sitemap = () => {
 export const getServerSideProps: GetServerSideProps = async ({ res }) => {
   const baseUrl = "https://www.inschoolz.com";
 
-  const staticPages = ["", "community", "game", "login", "ranking"].map(
-    (page) => ({
-      url: `${baseUrl}/${page}`,
-      lastmod: new Date().toISOString(),
-    }),
-  );
+  const staticPages = [
+    "",
+    "community",
+    "game",
+    "login",
+    "ranking",
+    "signup",
+  ].map((page) => ({
+    url: `${baseUrl}/${page}`,
+    lastmod: new Date().toISOString(),
+  }));
 
-  const dynamicPages = [];
+  // 조회수가 높은 게시글 10개 가져오기
+  const postsRef = collection(db, "posts");
+  const q = query(postsRef, orderBy("views", "desc"), limit(10));
+  const querySnapshot = await getDocs(q);
+
+  const dynamicPages = querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      url: `${baseUrl}/community/${data.category}/${doc.id}`,
+      lastmod: data.updatedAt.toDate().toISOString(),
+    };
+  });
+
+  const allPages = [...staticPages, ...dynamicPages];
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-      ${[...staticPages, ...dynamicPages]
+      ${allPages
         .map(
           ({ url, lastmod }) => `
-          <url>
-            <loc>${url}</loc>
-            <lastmod>${lastmod}</lastmod>
-            <changefreq>weekly</changefreq>
-            <priority>0.8</priority>
-          </url>`,
+        <url>
+          <loc>${url}</loc>
+          <lastmod>${lastmod}</lastmod>
+          <changefreq>daily</changefreq>
+          <priority>0.7</priority>
+        </url>
+      `,
         )
         .join("")}
     </urlset>`;
