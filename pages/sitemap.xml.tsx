@@ -29,7 +29,7 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
   const dynamicPages = querySnapshot.docs.map((doc) => {
     const data = doc.data();
     return {
-      url: `${baseUrl}/community/${data.category}/${doc.id}`,
+      url: `${baseUrl}/community/${data.categoryId}/${doc.id}`,
       lastmod: data.updatedAt.toDate().toISOString(),
     };
   });
