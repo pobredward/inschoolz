@@ -41,7 +41,7 @@ const LoginPage: React.FC = () => {
       onError: (error: Error) => {
         setError(error.message || errorMessages.UNKNOWN_ERROR);
       },
-    }
+    },
   );
 
   const handleLogin = (e: React.FormEvent) => {
@@ -59,6 +59,31 @@ const LoginPage: React.FC = () => {
           content="로그인 후 다양한 서비스를 이용하세요."
         />
         <meta property="og:url" content="https://www.inschoolz.com/login" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: "로그인",
+            url: "https://www.inschoolz.com/login",
+            breadcrumb: {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "홈",
+                  item: "https://www.inschoolz.com/",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "로그인",
+                  item: "https://www.inschoolz.com/login",
+                },
+              ],
+            },
+          })}
+        </script>
       </Head>
       <LoginContainer>
         <h1>로그인</h1>

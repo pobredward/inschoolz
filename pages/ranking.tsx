@@ -56,7 +56,7 @@ const RankingPage: React.FC = () => {
           usersRef,
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
-          limit(ITEMS_PER_PAGE)
+          limit(ITEMS_PER_PAGE),
         );
       } else if (lastVisible) {
         q = query(
@@ -64,7 +64,7 @@ const RankingPage: React.FC = () => {
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
           startAfter(lastVisible),
-          limit(ITEMS_PER_PAGE)
+          limit(ITEMS_PER_PAGE),
         );
       } else {
         return; // Cannot fetch data without lastVisible
@@ -76,7 +76,7 @@ const RankingPage: React.FC = () => {
           where("schoolId", "==", user.schoolId),
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
-          limit(ITEMS_PER_PAGE)
+          limit(ITEMS_PER_PAGE),
         );
       } else if (lastVisible) {
         q = query(
@@ -85,7 +85,7 @@ const RankingPage: React.FC = () => {
           orderBy("level", "desc"),
           orderBy("experience", "desc"),
           startAfter(lastVisible),
-          limit(ITEMS_PER_PAGE)
+          limit(ITEMS_PER_PAGE),
         );
       } else {
         return; // Cannot fetch data without lastVisible
@@ -127,7 +127,7 @@ const RankingPage: React.FC = () => {
     if (!searchTerm) return;
 
     const filteredData = rankings.filter((entry) =>
-      entry.userId.toLowerCase().includes(searchTerm.toLowerCase())
+      entry.userId.toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
     setRankings(filteredData);
@@ -172,6 +172,31 @@ const RankingPage: React.FC = () => {
           content="다양한 학교에 속한 학생들의 순위를 확인하세요."
         />
         <meta property="og:url" content="https://www.inschoolz.com/ranking" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: "랭킹",
+            url: "https://www.inschoolz.com/ranking",
+            breadcrumb: {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "홈",
+                  item: "https://www.inschoolz.com/",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "랭킹",
+                  item: "https://www.inschoolz.com/ranking",
+                },
+              ],
+            },
+          })}
+        </script>
       </Head>
       <RankingContainer>
         {/* <h1>랭킹</h1> */}

@@ -40,15 +40,37 @@ const GamePage: React.FC = () => {
     <Layout>
       <Head>
         <title>미니게임</title>
-        <meta
-          property="og:title"
-          content="미니게임"
-        />
+        <meta property="og:title" content="미니게임" />
         <meta
           property="og:description"
           content="다른 학교 친구들과 미니게임을 통해 경쟁하세요."
         />
         <meta property="og:url" content="https://www.inschoolz.com/game" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: "미니게임",
+            url: "https://www.inschoolz.com/game",
+            breadcrumb: {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "홈",
+                  item: "https://www.inschoolz.com/",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "미니게임",
+                  item: "https://www.inschoolz.com/game",
+                },
+              ],
+            },
+          })}
+        </script>
       </Head>
       <GameContainer>
         <TitleContainer>

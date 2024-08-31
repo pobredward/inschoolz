@@ -7,7 +7,7 @@ import CommunityPage from "../../components/CommunityPage";
 
 const Community: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useRecoilState(
-    selectedCategoryState
+    selectedCategoryState,
   );
   const router = useRouter();
 
@@ -26,6 +26,31 @@ const Community: React.FC = () => {
           content="인스쿨즈 커뮤니티에서 다양한 주제로 이야기를 나누고 정보를 공유하세요."
         />
         <link rel="canonical" href="https://www.inschoolz.com/community" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: "커뮤니티",
+            url: "https://www.inschoolz.com/community",
+            breadcrumb: {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "홈",
+                  item: "https://www.inschoolz.com/",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "커뮤니티",
+                  item: "https://www.inschoolz.com/community",
+                },
+              ],
+            },
+          })}
+        </script>
       </Head>
       <CommunityPage />
     </>
