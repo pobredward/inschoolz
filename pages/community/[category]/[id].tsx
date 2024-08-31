@@ -666,22 +666,6 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
           {JSON.stringify(structuredData)}
         </script>
       </Head>
-      <article>
-        <h1>{post.title}</h1>
-        <p>작성자: {post.author}</p>
-        <p>작성일: {new Date(post.createdAt).toLocaleDateString()}</p>
-        <p>
-          조회수: {post.views || 0} | 좋아요: {post.likes || 0}
-        </p>
-        {post.imageUrls?.map((url, index) => (
-          <img
-            key={index}
-            src={url}
-            alt={`${post.title} 이미지 ${index + 1}`}
-          />
-        ))}
-        <div dangerouslySetInnerHTML={{ __html: post.content }} />
-      </article>
       <Container>
         <MobileHeader>
           <HamburgerIcon onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
@@ -1045,8 +1029,9 @@ const UploadTime = styled.div`
   color: #6c757d;
 `;
 
-const PostTitle = styled.h2`
-  margin: 0 0 1rem 0;
+const PostTitle = styled.h1`
+  margin: 0 0 2rem 0;
+  font-size: 1.6rem;
 `;
 
 const PostContent = styled.div`
