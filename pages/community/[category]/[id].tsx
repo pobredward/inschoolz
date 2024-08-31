@@ -269,29 +269,6 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
       }
     };
 
-    const handleScrap = async () => {
-      if (!user || !post) return;
-
-      try {
-        if (isScrapped) {
-          await unscrapPost(user.uid, post.id);
-          setIsScrapped(false);
-        } else {
-          await scrapPost(user.uid, post.id);
-          setIsScrapped(true);
-        }
-        // Update post state with new scrap count
-        setPost((prevPost) => ({
-          ...prevPost,
-          scraps: isScrapped
-            ? (prevPost.scraps || 1) - 1
-            : (prevPost.scraps || 0) + 1,
-        }));
-      } catch (error) {
-        console.error("Error updating scrap:", error);
-      }
-    };
-
     fetchPost();
     fetchComments();
     checkIfLiked();
@@ -471,6 +448,29 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleScrap = async () => {
+    if (!user || !post) return;
+
+    try {
+      if (isScrapped) {
+        await unscrapPost(user.uid, post.id);
+        setIsScrapped(false);
+      } else {
+        await scrapPost(user.uid, post.id);
+        setIsScrapped(true);
+      }
+      // Update post state with new scrap count
+      setPost((prevPost) => ({
+        ...prevPost,
+        scraps: isScrapped
+          ? (prevPost.scraps || 1) - 1
+          : (prevPost.scraps || 0) + 1,
+      }));
+    } catch (error) {
+      console.error("Error updating scrap:", error);
     }
   };
 

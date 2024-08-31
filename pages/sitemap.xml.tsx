@@ -23,7 +23,7 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
 
   // 조회수가 높은 게시글 10개 가져오기
   const postsRef = collection(db, "posts");
-  const q = query(postsRef, orderBy("views", "desc"), limit(10));
+  const q = query(postsRef, orderBy("views", "desc"), limit(1000));
   const querySnapshot = await getDocs(q);
 
   const dynamicPages = querySnapshot.docs.map((doc) => {
