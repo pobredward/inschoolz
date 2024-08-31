@@ -70,26 +70,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     updatedAt: postData.updatedAt.toDate().toISOString(),
   } as Post;
 
-  const plainTextContent = postData.content.replace(/<[^>]+>/g, "");
-  const sentences = plainTextContent.split(/(?<=[.!?])\s+/); // 문장 단위로 분할
-  let description = "";
-
-  for (let sentence of sentences) {
-    if ((description + sentence).length <= 200) {
-      description += sentence + " ";
-    } else {
-      break;
-    }
-  }
-
   const seoData = {
     title: `${initialPost.title} | 인스쿨즈`,
-    description: description.trim(),
+    description: initialPost.content.substring(0, 160),
     url: `https://inschoolz.com/community/${category}/${initialPost.id}`,
     imageUrl:
       initialPost.imageUrls && initialPost.imageUrls[0]
         ? initialPost.imageUrls[0]
-        : null,
+        : "/default-thumbnail.png", // 이미지가 없는 경우 기본 이미지 설정
   };
 
   return { props: { initialPost, category, seoData } };
@@ -107,7 +95,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
   const [editedTitle, setEditedTitle] = useState("");
   const [commentCount, setCommentCount] = useState(0);
   const [selectedVoteOption, setSelectedVoteOption] = useState<number | null>(
-    null
+    null,
   );
   const [editedImages, setEditedImages] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -135,7 +123,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pageRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useRecoilState(
-    selectedCategoryState
+    selectedCategoryState,
   );
 
   const ProfileImage = ({ src, alt }) => {
@@ -305,7 +293,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
               ...comment,
               authorProfileImage: authorData?.profileImageUrl || null,
             };
-          })
+          }),
         );
         setComments(commentsWithProfileImages);
         setCommentCount(commentsWithProfileImages.length);
@@ -373,7 +361,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
     setSelectedReasons((prev) =>
       prev.includes(reason)
         ? prev.filter((r) => r !== reason)
-        : [...prev, reason]
+        : [...prev, reason],
     );
   };
 
@@ -429,7 +417,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
         filesArray.map(async (file) => {
           // 이미지 압축 로직 (필요한 경우)
           return file;
-        })
+        }),
       );
 
       setNewImages((prevImages) => [...prevImages, ...compressedImages]);
@@ -461,7 +449,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
           const url = await uploadImage(image, user.uid, "post", post.id);
           setUploadProgress(((index + 1) / newImages.length) * 100);
           return url;
-        })
+        }),
       );
 
       // 삭제된 이미지 처리
@@ -635,7 +623,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
       if (liked) {
         updatedPost.likes -= 1;
         updatedPost.likedBy = updatedPost.likedBy.filter(
-          (uid: string) => uid !== user.uid
+          (uid: string) => uid !== user.uid,
         );
       } else {
         updatedPost.likes += 1;
