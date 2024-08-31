@@ -49,41 +49,28 @@ import ReactPlayer from "react-player";
 
 interface PostPageProps {
   initialPost: Post;
-  category: string;
-  seoData: any;
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { id, category } = context.params as { id: string; category: string };
-  const docRef = doc(db, "posts", id);
-  const docSnap = await getDoc(docRef);
+  const { id } = context.params as { id: string };
+  const postDoc = await getDoc(doc(db, "posts", id));
 
-  if (!docSnap.exists()) {
+  if (!postDoc.exists()) {
     return { notFound: true };
   }
 
-  const postData = docSnap.data();
+  const postData = postDoc.data() as Post;
   const initialPost: Post = {
-    id: docSnap.id,
+    id: postDoc.id,
     ...postData,
     createdAt: postData.createdAt.toDate().toISOString(),
     updatedAt: postData.updatedAt.toDate().toISOString(),
-  } as Post;
-
-  const seoData = {
-    title: `${initialPost.title} | 인스쿨즈`,
-    description: initialPost.content.substring(0, 160),
-    url: `https://inschoolz.com/community/${category}/${initialPost.id}`,
-    imageUrl:
-      initialPost.imageUrls && initialPost.imageUrls[0]
-        ? initialPost.imageUrls[0]
-        : "/default-thumbnail.png", // 이미지가 없는 경우 기본 이미지 설정
   };
 
-  return { props: { initialPost, category, seoData } };
+  return { props: { initialPost } };
 };
 
-const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
+const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
   const router = useRouter();
   const { id } = router.query;
   const [post, setPost] = useState<Post>(initialPost);
@@ -210,41 +197,6 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
     return DOMPurify.sanitize(html);
   };
 
-  const structuredData = post
-    ? {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        headline: post.title,
-        datePublished: post.createdAt,
-        dateModified: post.updatedAt,
-        author: {
-          "@type": "Person",
-          name: post.author,
-        },
-        description: post.content.substring(0, 160),
-        mainEntityOfPage: {
-          "@type": "WebPage",
-          "@id": `https://inschoolz.com/posts/${post.id}`,
-        },
-        publisher: {
-          "@type": "Organization",
-          name: "인스쿨즈",
-          logo: {
-            "@type": "ImageObject",
-            url: "/favicon.ico", // 로고 URL을 실제로 변경하세요.
-          },
-        },
-        image: post.imageUrls ? post.imageUrls[0] : undefined,
-        articleSection: categories.find((cat) => cat.id === post.categoryId)
-          ?.name,
-        keywords: post.title
-          .split(" ")
-          .concat(post.content.split(" "))
-          .slice(0, 10)
-          .join(", "),
-      }
-    : null;
-
   useEffect(() => {
     const fetchPost = async () => {
       if (id) {
@@ -310,11 +262,41 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
       }
     };
 
+    const checkIfScrapped = async () => {
+      if (user && post) {
+        const scrapped = await isPostScrapped(user.uid, post.id);
+        setIsScrapped(scrapped);
+      }
+    };
+
+    const handleScrap = async () => {
+      if (!user || !post) return;
+
+      try {
+        if (isScrapped) {
+          await unscrapPost(user.uid, post.id);
+          setIsScrapped(false);
+        } else {
+          await scrapPost(user.uid, post.id);
+          setIsScrapped(true);
+        }
+        // Update post state with new scrap count
+        setPost((prevPost) => ({
+          ...prevPost,
+          scraps: isScrapped
+            ? (prevPost.scraps || 1) - 1
+            : (prevPost.scraps || 0) + 1,
+        }));
+      } catch (error) {
+        console.error("Error updating scrap:", error);
+      }
+    };
+
     fetchPost();
     fetchComments();
     checkIfLiked();
     checkIfScrapped();
-  }, [id, setComments, user]);
+  }, [initialPost.id, setComments, user]);
 
   useEffect(() => {
     const incrementViewCount = async () => {
@@ -340,7 +322,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
     if (id) {
       incrementViewCount();
     }
-  }, [id]);
+  }, [initialPost.id]);
 
   const reportReasons = [
     "부적절한 내용",
@@ -492,36 +474,6 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
     }
   };
 
-  const checkIfScrapped = async () => {
-    if (user && post) {
-      const scrapped = await isPostScrapped(user.uid, post.id);
-      setIsScrapped(scrapped);
-    }
-  };
-
-  const handleScrap = async () => {
-    if (!user || !post) return;
-
-    try {
-      if (isScrapped) {
-        await unscrapPost(user.uid, post.id);
-        setIsScrapped(false);
-      } else {
-        await scrapPost(user.uid, post.id);
-        setIsScrapped(true);
-      }
-      // Update post state with new scrap count
-      setPost((prevPost) => ({
-        ...prevPost,
-        scraps: isScrapped
-          ? (prevPost.scraps || 1) - 1
-          : (prevPost.scraps || 0) + 1,
-      }));
-    } catch (error) {
-      console.error("Error updating scrap:", error);
-    }
-  };
-
   const openVoteImageModal = (imageUrl: string) => {
     setCurrentVoteImage(imageUrl);
     setModalOpen(true);
@@ -656,20 +608,80 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost, seoData }) => {
     }).format(postDate);
   };
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `https://www.inschoolz.com/community/${post.categoryId}/${post.id}`,
+    },
+    headline: post.title,
+    description: post.content.substring(0, 200),
+    image: post.imageUrls,
+    author: {
+      "@type": "Person",
+      name: post.author,
+    },
+    datePublished: post.createdAt,
+    dateModified: post.updatedAt,
+    publisher: {
+      "@type": "Organization",
+      name: "인스쿨즈",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://www.inschoolz.com/logo.png",
+      },
+    },
+    interactionStatistic: [
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/WatchAction",
+        userInteractionCount: post.views || 0,
+      },
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/LikeAction",
+        userInteractionCount: post.likes || 0,
+      },
+    ],
+  };
+
   return (
     <Layout>
       <Head>
-        <title>{seoData.title}</title>
-        <meta name="description" content={seoData.description} />
-        <meta property="og:title" content={seoData.title} />
-        <meta property="og:description" content={seoData.description} />
+        <title>{post.title} | 인스쿨즈</title>
+        <meta name="description" content={post.content.substring(0, 100)} />
+        <meta property="og:title" content={post.title} />
+        <meta
+          property="og:description"
+          content={post.content.substring(0, 100)}
+        />
+        <meta property="og:image" content={post.imageUrls?.[0] || ""} />
+        <meta
+          property="og:url"
+          content={`https://www.inschoolz.com/community/${post.categoryId}/${post.id}`}
+        />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={seoData.url} />
-        {seoData.imageUrl && (
-          <meta property="og:image" content={seoData.imageUrl} />
-        )}
-        <link rel="canonical" href={seoData.url} />
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
       </Head>
+      <article>
+        <h1>{post.title}</h1>
+        <p>작성자: {post.author}</p>
+        <p>작성일: {new Date(post.createdAt).toLocaleDateString()}</p>
+        <p>
+          조회수: {post.views || 0} | 좋아요: {post.likes || 0}
+        </p>
+        {post.imageUrls?.map((url, index) => (
+          <img
+            key={index}
+            src={url}
+            alt={`${post.title} 이미지 ${index + 1}`}
+          />
+        ))}
+        <div dangerouslySetInnerHTML={{ __html: post.content }} />
+      </article>
       <Container>
         <MobileHeader>
           <HamburgerIcon onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
