@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { useRecoilState } from "recoil";
-import { postsState, categoriesState } from "../store/atoms";
+import { postsState, userState, categoriesState } from "../store/atoms";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Post } from "../types";
 import { db } from "../lib/firebase";
@@ -12,6 +12,7 @@ import { FaSearch } from "react-icons/fa";
 const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
   const [posts, setPosts] = useRecoilState(postsState);
   const router = useRouter();
+  const [user, setUser] = useRecoilState(userState);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageGroup, setCurrentPageGroup] = useState(1); // 페이지 그룹 상태
@@ -32,25 +33,41 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
               collection(db, "posts"),
               where("categoryId", "==", "national-free"),
               where("likes", ">=", 3),
-              where("createdAt", ">=", oneWeekAgo)
+              where("createdAt", ">=", oneWeekAgo),
             );
           } else {
             q = query(
               collection(db, "posts"),
-              where("categoryId", "==", selectedCategory)
+              where("categoryId", "==", selectedCategory),
             );
           }
           const querySnapshot = await getDocs(q);
-          const postsData = querySnapshot.docs.map((doc) => ({
+          let postsData = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...(doc.data() as Post),
           }));
+
+          // 지역 카테고리 필터링
+          if (selectedCategory.startsWith("regional") && user) {
+            postsData = postsData.filter(
+              (post) =>
+                post.address1 === user.address1 &&
+                post.address2 === user.address2,
+            );
+          }
+          // 학교 카테고리 필터링
+          else if (selectedCategory.startsWith("school") && user) {
+            postsData = postsData.filter(
+              (post) =>
+                post.schoolId === user.schoolId ||
+                post.schoolName === user.schoolName,
+            );
+          }
 
           // 클라이언트 측에서 정렬
           const sortedPosts = postsData.sort((a, b) => {
             return b.createdAt.toMillis() - a.createdAt.toMillis();
           });
-
           setPosts(sortedPosts);
           setFilteredPosts(sortedPosts); // 전체 게시글을 기본으로 설정
         } catch (error) {
@@ -62,9 +79,8 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
         setLoading(false);
       }
     };
-
     fetchPosts();
-  }, [selectedCategory, isLoggedIn, isNationalCategory, setPosts]);
+  }, [selectedCategory, isLoggedIn, isNationalCategory, user, setPosts]);
 
   const handlePostClick = (postId: string) => {
     router.push(`/community/${selectedCategory}/${postId}`);
@@ -98,26 +114,26 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
         dateThreshold = new Date(now.setMonth(now.getMonth() - 1));
       }
       filtered = filtered.filter(
-        (post) => post.createdAt.toDate() >= dateThreshold
+        (post) => post.createdAt.toDate() >= dateThreshold,
       );
     }
 
     // 검색 범위 필터 적용
     if (searchScope === "title") {
       filtered = filtered.filter((post) =>
-        post.title.toLowerCase().includes(searchTermLower)
+        post.title.toLowerCase().includes(searchTermLower),
       );
     } else if (searchScope === "author") {
       filtered = filtered.filter((post) =>
-        post.author.toLowerCase().includes(searchTermLower)
+        post.author.toLowerCase().includes(searchTermLower),
       );
     } else if (searchScope === "comments") {
       filtered = filtered.filter(
         (post) =>
           Array.isArray(post.comments) &&
           post.comments.some((comment) =>
-            comment.toLowerCase().includes(searchTermLower)
-          )
+            comment.toLowerCase().includes(searchTermLower),
+          ),
       );
     } else {
       filtered = filtered.filter(
@@ -127,8 +143,8 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
           post.author.toLowerCase().includes(searchTermLower) ||
           (Array.isArray(post.comments) &&
             post.comments.some((comment) =>
-              comment.toLowerCase().includes(searchTermLower)
-            ))
+              comment.toLowerCase().includes(searchTermLower),
+            )),
       );
     }
 
@@ -209,7 +225,7 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
                 </PostActions>
               </PostFooter>
             </PostItem>
-          )
+          ),
         )}
       </PostContainer>
       <Pagination>
