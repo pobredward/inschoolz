@@ -107,6 +107,7 @@ export interface Post {
   voteOptions?: VoteOption[] | null;
   voteResults?: { [key: number]: number };
   voterIds?: string[];
+  voterChoices?: { [userId: string]: number };
   reportCount?: number;
   reportStatus?: string;
   reports?: Report[];

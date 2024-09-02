@@ -480,16 +480,16 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
   };
 
   const handleVote = async (optionIndex: number) => {
-    if (!user || selectedVoteOption !== null) return;
+    if (!user || post.voterIds?.includes(user.uid)) return;
 
     try {
       const postRef = doc(db, "posts", id as string);
       await updateDoc(postRef, {
         [`voteResults.${optionIndex}`]: increment(1),
+        [`voterChoices.${user.uid}`]: optionIndex,
         voterIds: arrayUnion(user.uid),
       });
 
-      setSelectedVoteOption(optionIndex);
       // Update local post state
       setPost((prevPost: any) => ({
         ...prevPost,
@@ -497,12 +497,32 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
           ...prevPost.voteResults,
           [optionIndex]: (prevPost.voteResults?.[optionIndex] || 0) + 1,
         },
+        voterChoices: {
+          ...prevPost.voterChoices,
+          [user.uid]: optionIndex,
+        },
         voterIds: [...(prevPost.voterIds || []), user.uid],
       }));
     } catch (error) {
       console.error("Error voting:", error);
     }
   };
+
+  const getTotalVotes = () => {
+    return Object.values(post.voteResults || {}).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+  };
+
+  const getVotePercentage = (optionIndex: number) => {
+    const totalVotes = getTotalVotes();
+    if (totalVotes === 0) return 0;
+    return ((post.voteResults?.[optionIndex] || 0) / totalVotes) * 100;
+  };
+
+  const hasUserVoted = user && post.voterIds?.includes(user.uid);
+  const userChoice = user ? post.voterChoices?.[user.uid] : null;
 
   if (loading) {
     return (
@@ -803,10 +823,10 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
                         <VoteOption
                           key={index}
                           onClick={() => handleVote(index)}
-                          disabled={
-                            selectedVoteOption !== null ||
-                            post.voterIds?.includes(user?.uid)
-                          }
+                          disabled={hasUserVoted}
+                          percentage={getVotePercentage(index)}
+                          isSelected={userChoice === index}
+                          hasVoted={hasUserVoted}
                         >
                           {option.imageUrl && (
                             <VoteOptionImage
@@ -819,15 +839,10 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
                             />
                           )}
                           <VoteOptionText>{option.text}</VoteOptionText>
-                          {post.voteResults && (
+                          {hasUserVoted && (
                             <VoteResult>
-                              {post.voteResults[index] || 0}표(
-                              {(
-                                ((post.voteResults[index] || 0) /
-                                  (post.voterIds?.length || 1)) *
-                                100
-                              ).toFixed(0)}
-                              %)
+                              {post.voteResults?.[index] || 0}표 (
+                              {getVotePercentage(index).toFixed(1)}%)
                             </VoteResult>
                           )}
                         </VoteOption>
@@ -1263,7 +1278,7 @@ const VoteSection = styled.div`
   border-radius: 4px;
 
   @media (max-width: 768px) {
-    padding: 0.5rem;
+    padding: 0.2rem;
   }
 `;
 
@@ -1282,27 +1297,68 @@ const VoteOptionImage = styled.img`
 
 const VoteOptionText = styled.span`
   flex-grow: 1;
+  text-align: center;
 `;
 
-const VoteOption = styled.button<{ disabled: boolean }>`
+const VoteOption = styled.div<{
+  percentage: number;
+  isSelected: boolean;
+  hasVoted: boolean;
+  disabled: boolean;
+}>`
   display: flex;
   align-items: center;
-  width: 100%;
+  justify-content: space-between;
+  width: 95%;
   padding: 0.5rem;
   margin: 0.5rem 0;
-  background-color: ${(props) => (props.disabled ? "#e9ecef" : "white")};
-  border: 1px solid #ced4da;
+  background-color: white;
+  border: 1px solid ${(props) => (props.isSelected ? "#4a90e2" : "#ced4da")};
   border-radius: 4px;
   cursor: ${(props) => (props.disabled ? "default" : "pointer")};
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: ${(props) => (props.hasVoted ? `${props.percentage}%` : "0")};
+    background-color: ${(props) =>
+      props.isSelected
+        ? "rgba(173, 216, 230, 0.5)"
+        : "rgba(211, 211, 211, 0.5)"};
+    z-index: 0;
+    transition: width 0.5s ease-in-out;
+  }
 
   &:hover {
-    background-color: ${(props) => (props.disabled ? "#e9ecef" : "#f1f3f5")};
+    background-color: ${(props) => (props.disabled ? "inherit" : "#f1f3f5")};
   }
+
+  ${(props) =>
+    props.hasVoted &&
+    `
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: ${props.isSelected ? "rgba(173, 216, 230, 0.2)" : "rgba(211, 211, 211, 0.2)"};
+      z-index: 1;
+    }
+  `}
 `;
 
 const VoteResult = styled.span`
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #6c757d;
   margin-left: 10px;
 `;
