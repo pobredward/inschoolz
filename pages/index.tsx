@@ -64,7 +64,7 @@ const HomePage: NextPage = () => {
         )}
 
         <TestNotice>
-          <h1>To. 테스트 유저</h1>
+          <h2>테스트 기간: 09/01~09/15</h2>
           <ul>
             <li>활성화된 커뮤니티처럼 보이는 것이 목표입니다.</li>
             <li>
