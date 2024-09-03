@@ -1057,6 +1057,10 @@ const PostContent = styled.div`
     max-width: 100%;
     height: auto;
   }
+
+  p {
+    margin: 0;
+  }
 `;
 
 const PostActions = styled.div`
