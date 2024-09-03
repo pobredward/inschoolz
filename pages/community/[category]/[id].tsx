@@ -1051,7 +1051,7 @@ const PostTitle = styled.h1`
 
 const PostContent = styled.div`
   margin-bottom: 2rem;
-  line-height: 1.6;
+  /* line-height: 1.6; */
 
   img {
     max-width: 100%;
