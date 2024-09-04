@@ -145,12 +145,12 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
     setSearchTerm(event.target.value);
   };
 
-  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleSearch();
-    }
-  };
+  // const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  //   if (event.key === "Enter") {
+  //     event.preventDefault();
+  //     handleSearch();
+  //   }
+  // };
 
   const handleSchoolSelect = async (school: School) => {
     setSelectedSchool(school);
