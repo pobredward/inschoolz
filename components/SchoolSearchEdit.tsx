@@ -22,11 +22,13 @@ import DefaultModal from "../components/modal/DefaultModal";
 interface SchoolSearchEditProps {
   initialSchool?: { KOR_NAME: string; ADDRESS: string };
   setSchool: (school: any) => void;
+  preventFormSubmit?: boolean;
 }
 
 const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
   initialSchool,
   setSchool,
+  preventFormSubmit = false,
 }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -52,13 +54,13 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
           const favoriteSchoolIds = userDoc.data().favoriteSchools || [];
           const favoriteSchoolDocs = await Promise.all(
             favoriteSchoolIds.map((id: string) =>
-              getDoc(doc(db, "schools", id))
-            )
+              getDoc(doc(db, "schools", id)),
+            ),
           );
           setFavoriteSchools(
             favoriteSchoolDocs.map(
-              (doc) => ({ id: doc.id, ...doc.data() } as School)
-            )
+              (doc) => ({ id: doc.id, ...doc.data() }) as School,
+            ),
           );
         }
       };
@@ -82,14 +84,18 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
       setFavoriteSchools((prev) =>
         isFavorite
           ? prev.filter((fav) => fav.id !== school.id)
-          : [...prev, school]
+          : [...prev, school],
       );
     } catch (error) {
       console.error("Error updating favorite schools: ", error);
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (preventFormSubmit) {
+      e.preventDefault();
+    }
+
     if (searchTerm.length < 2) {
       setError("검색어는 2글자 이상이어야 합니다");
       return;
@@ -110,7 +116,7 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
       const q = query(
         schoolsRef,
         where("KOR_NAME", ">=", searchTerm),
-        where("KOR_NAME", "<=", searchTerm + "\uf8ff")
+        where("KOR_NAME", "<=", searchTerm + "\uf8ff"),
       );
       const querySnapshot = await getDocs(q);
       const filteredSchools = querySnapshot.docs.map((doc) => ({
@@ -173,7 +179,7 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
   };
 
   const handleInfoButtonClick = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault(); // 폼 제출 방지
     setShowInfoModal(true);
@@ -244,10 +250,15 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
                       type="text"
                       placeholder="학교 이름 입력"
                       value={searchTerm}
-                      onChange={handleInputChange}
-                      onKeyPress={handleKeyPress}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && handleSearch(e as any)
+                      }
                     />
-                    <SearchActionButton onClick={handleSearch}>
+                    <SearchActionButton
+                      onClick={handleSearch}
+                      type="button" // 추가된 부분
+                    >
                       <FaSearch />
                     </SearchActionButton>
                   </SearchInputContainer>
@@ -274,7 +285,7 @@ const SchoolSearchEdit: React.FC<SchoolSearchEditProps> = ({
                               toggleFavoriteSchool(school);
                             }}
                             isFavorite={favoriteSchools.some(
-                              (fav) => fav.id === school.id
+                              (fav) => fav.id === school.id,
                             )}
                           >
                             <FaStar />

@@ -112,6 +112,7 @@ const EditMyInfo: React.FC = () => {
             <SchoolSearchEdit
               initialSchool={initialSchool}
               setSchool={handleSchoolChange}
+              preventFormSubmit={true}
             />
           </FormGroup>
           <GradeClassWrapper>
