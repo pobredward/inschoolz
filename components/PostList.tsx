@@ -31,7 +31,8 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
             q = query(
               collection(db, "posts"),
-              where("categoryId", "==", "national-free"),
+              where("categoryId", ">=", "national"),
+              where("categoryId", "<", "national\u{FFFF}"),
               where("likes", ">=", 3),
               where("createdAt", ">=", oneWeekAgo),
             );
