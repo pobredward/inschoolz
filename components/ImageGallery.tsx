@@ -32,7 +32,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images }) => {
 
   const prevImage = () => {
     setCurrentImageIndex(
-      (prevIndex) => (prevIndex - 1 + images.length) % images.length
+      (prevIndex) => (prevIndex - 1 + images.length) % images.length,
     );
   };
 
@@ -86,6 +86,7 @@ const GalleryContainer = styled.div`
   flex-direction: column;
   width: 80%;
   gap: 10px;
+  min-height: 1000px;
 
   @media (max-width: 768px) {
     width: 100%;
