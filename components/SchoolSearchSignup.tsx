@@ -21,7 +21,7 @@ import DefaultModal from "../components/modal/DefaultModal";
 
 interface SchoolSearchSignupProps {
   initialSchool?: { KOR_NAME: string; ADDRESS: string };
-  setSchool: (school: any) => void;
+  setSchool: (school: School | null) => void;
 }
 
 const SchoolSearchSignup: React.FC<SchoolSearchSignupProps> = ({

@@ -203,15 +203,11 @@ const CreatePostPage: React.FC = () => {
       let schoolId = user.schoolId || "";
       let schoolName = user.schoolName || "";
       
-      if (category === "school-student" && selectedSchool && selectedSchool !== "") {
+      if (category === "school-student" && selectedSchool !== null) {
         // 선택한 학교 정보를 가져옴
         try {
-          const schoolDoc = await getDoc(doc(db, "schools", selectedSchool));
-          if (schoolDoc.exists()) {
-            const schoolData = schoolDoc.data();
-            schoolId = selectedSchool;
-            schoolName = schoolData.KOR_NAME;
-          }
+          schoolId = selectedSchool.id;
+          schoolName = selectedSchool.KOR_NAME;
         } catch (error) {
           console.error("학교 정보를 가져오는 중 오류 발생:", error);
         }

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
-import { useRecoilState } from "recoil";
 import { userState, selectedSchoolState } from "../store/atoms";
-import { doc, getDoc } from "firebase/firestore";
+import { useRecoilState, useRecoilValue } from "recoil";
+import { useAuth } from "../hooks/useAuth";
+import { FaSchool, FaCaretDown } from "react-icons/fa";
 import { db } from "../lib/firebase";
-import { FaSchool, FaChevronDown } from "react-icons/fa";
+import { doc, getDoc } from "firebase/firestore";
+import { School } from "../types";
 
 interface SchoolInfo {
   id: string;
@@ -13,33 +15,31 @@ interface SchoolInfo {
 }
 
 const SchoolSelector: React.FC = () => {
-  const [user] = useRecoilState(userState);
+  const { user } = useAuth();
   const [selectedSchool, setSelectedSchool] = useRecoilState(selectedSchoolState);
-  const [favoriteSchools, setFavoriteSchools] = useState<SchoolInfo[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const fetchFavoriteSchools = async () => {
-      if (user && user.favoriteSchools && user.favoriteSchools.length > 0) {
-        const schoolPromises = user.favoriteSchools.map(async (schoolId) => {
-          const schoolDoc = await getDoc(doc(db, "schools", schoolId));
-          if (schoolDoc.exists()) {
-            const data = schoolDoc.data();
-            return {
-              id: schoolDoc.id,
-              KOR_NAME: data.KOR_NAME,
-              ADDRESS: data.ADDRESS
-            };
-          }
-          return null;
-        });
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const favoriteSchoolIds = userDoc.data().favoriteSchools || [];
+          const favoriteSchoolDocs = await Promise.all(
+            favoriteSchoolIds.map((id: string) => getDoc(doc(db, "schools", id)))
+          );
+          const fetchedSchools = favoriteSchoolDocs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as School));
+          setSchools(fetchedSchools);
 
-        const schools = (await Promise.all(schoolPromises)).filter(school => school !== null) as SchoolInfo[];
-        setFavoriteSchools(schools);
-        
-        // 선택된 학교가 없으면 첫 번째 학교를 기본으로 선택
-        if (selectedSchool === "" && schools.length > 0) {
-          setSelectedSchool(schools[0].id);
+          // 선택된 학교가 없으면 첫 번째 학교를 기본으로 선택
+          if (selectedSchool === null && fetchedSchools.length > 0) {
+            setSelectedSchool(fetchedSchools[0]);
+          }
         }
       }
     };
@@ -47,8 +47,8 @@ const SchoolSelector: React.FC = () => {
     fetchFavoriteSchools();
   }, [user, setSelectedSchool, selectedSchool]);
 
-  const handleSchoolSelect = (schoolId: string) => {
-    setSelectedSchool(schoolId);
+  const handleSchoolSelect = (school: School) => {
+    setSelectedSchool(school);
     setIsDropdownOpen(false);
   };
 
@@ -57,8 +57,10 @@ const SchoolSelector: React.FC = () => {
   };
 
   const getCurrentSchoolName = () => {
-    const school = favoriteSchools.find(s => s.id === selectedSchool);
-    return school ? school.KOR_NAME : "학교 선택";
+    if (selectedSchool) {
+      return selectedSchool.KOR_NAME;
+    }
+    return "학교 선택";
   };
 
   if (!user || !user.favoriteSchools || user.favoriteSchools.length === 0) {
@@ -70,16 +72,16 @@ const SchoolSelector: React.FC = () => {
       <SelectorButton onClick={toggleDropdown}>
         <FaSchool />
         <SchoolName>{getCurrentSchoolName()}</SchoolName>
-        <FaChevronDown />
+        <FaCaretDown />
       </SelectorButton>
       
       {isDropdownOpen && (
         <DropdownMenu>
-          {favoriteSchools.map((school) => (
+          {schools.map((school) => (
             <SchoolItem 
               key={school.id}
-              onClick={() => handleSchoolSelect(school.id)}
-              isSelected={school.id === selectedSchool}
+              onClick={() => handleSchoolSelect(school)}
+              isSelected={selectedSchool !== null && school.id === selectedSchool.id}
             >
               {school.KOR_NAME}
             </SchoolItem>

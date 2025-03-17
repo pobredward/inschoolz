@@ -374,7 +374,7 @@ const ButtonContainer = styled.div`
   gap: 1rem;
 `;
 
-const WarnButton = styled.button`
+const WarnButton = styled.button<{ disabled?: boolean }>`
   background-color: #ffc107;
   color: black;
   border: none;
@@ -385,7 +385,7 @@ const WarnButton = styled.button`
   cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
 `;
 
-const DeleteButton = styled.button`
+const DeleteButton = styled.button<{ disabled?: boolean }>`
   background-color: #dc3545;
   color: white;
   border: none;

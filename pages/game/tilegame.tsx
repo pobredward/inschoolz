@@ -275,7 +275,7 @@ const TileGame: React.FC = () => {
         <GameTitle>타일 게임</GameTitle>
         <GameArea>
           {tiles.map((tile, index) => (
-            <Tile
+            <TileButton
               key={index}
               onClick={() => handleTileClick(index)}
               isBlack={tile === 1}
@@ -340,7 +340,10 @@ const GameArea = styled.div`
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
 `;
 
-const Tile = styled.div<{ isBlack: boolean; disabled: boolean }>`
+const TileButton = styled.button<{
+  isBlack: boolean;
+  disabled?: boolean;
+}>`
   width: 70px;
   height: 70px;
   background-color: ${(props) => (props.isBlack ? "#333" : "#fff")};

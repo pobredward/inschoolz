@@ -24,6 +24,7 @@ import {
   getExperienceSettings,
 } from "../utils/experience";
 import ExperienceModal from "../components/modal/ExperienceModal";
+import { School } from "../types";
 
 const SignupPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -34,7 +35,7 @@ const SignupPage: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address1, setAddress1] = useState("");
   const [address2, setAddress2] = useState("");
-  const [school, setSchool] = useState<any>(null);
+  const [school, setSchool] = useState<School | null>(null);
   const [grade, setGrade] = useState("");
   const [classNumber, setClassNumber] = useState("");
   const [birthYear, setBirthYear] = useState<number>(0);
@@ -277,7 +278,7 @@ const SignupPage: React.FC = () => {
 
     const currentYear = new Date().getFullYear();
     if (birthYear < 1900 || birthYear > currentYear) {
-      setError("올바른 출생  ��도를 입력해주세요.");
+      setError("올바른 출생 연도를 입력해주세요.");
       return;
     }
     if (birthMonth < 1 || birthMonth > 12) {

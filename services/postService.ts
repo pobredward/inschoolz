@@ -1,4 +1,9 @@
-import { Post, User } from "../types";
+import {
+  Post,
+  CreatePostData as CreatePostDataType,
+  User,
+  VoteOption,
+} from "../types";
 import { db } from "../lib/firebase";
 import {
   collection,
@@ -46,11 +51,6 @@ export async function fetchFilteredPosts(
   }
 
   return posts;
-}
-
-export interface VoteOption {
-  text: string;
-  imageUrl?: string;
 }
 
 export interface CreatePostData {

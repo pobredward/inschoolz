@@ -1329,11 +1329,11 @@ const VoteOptionText = styled.span`
   text-align: center;
 `;
 
-const VoteOption = styled.div<{
+const VoteOption = styled.button<{
   percentage: number;
   isSelected: boolean;
   hasVoted: boolean;
-  disabled: boolean;
+  disabled?: boolean;
 }>`
   display: flex;
   align-items: center;

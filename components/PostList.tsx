@@ -60,9 +60,9 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
           // 학교 카테고리 필터링
           else if (selectedCategory.startsWith("school") && user) {
             // 학교 선택기를 통해 선택한 학교의 게시물만 필터링
-            if (selectedCategory === "school-student" && selectedSchool) {
+            if (selectedCategory === "school-student" && selectedSchool !== null) {
               postsData = postsData.filter(
-                (post) => post.schoolId === selectedSchool
+                (post) => post.schoolId === selectedSchool.id
               );
             } else {
               // 기존 로직 유지 (사용자 자신의 학교)
