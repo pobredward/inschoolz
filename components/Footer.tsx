@@ -9,7 +9,7 @@ const FooterContainer = styled.footer`
 export default function Footer() {
   return (
     <FooterContainer>
-      <p>&copy; 2024 인스쿨즈. All rights reserved.</p>
+      <p>&copy; 2025 인스쿨즈. All rights reserved.</p>
     </FooterContainer>
   );
 }

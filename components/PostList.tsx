@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
-import { useRecoilState } from "recoil";
-import { postsState, userState, categoriesState } from "../store/atoms";
+import { useRecoilState, useRecoilValue } from "recoil";
+import { postsState, userState, categoriesState, selectedSchoolState } from "../store/atoms";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Post } from "../types";
 import { db } from "../lib/firebase";
@@ -13,6 +13,7 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
   const [posts, setPosts] = useRecoilState(postsState);
   const router = useRouter();
   const [user, setUser] = useRecoilState(userState);
+  const selectedSchool = useRecoilValue(selectedSchoolState);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageGroup, setCurrentPageGroup] = useState(1); // 페이지 그룹 상태
@@ -58,11 +59,19 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
           }
           // 학교 카테고리 필터링
           else if (selectedCategory.startsWith("school") && user) {
-            postsData = postsData.filter(
-              (post) =>
-                post.schoolId === user.schoolId ||
-                post.schoolName === user.schoolName,
-            );
+            // 학교 선택기를 통해 선택한 학교의 게시물만 필터링
+            if (selectedCategory === "school-student" && selectedSchool) {
+              postsData = postsData.filter(
+                (post) => post.schoolId === selectedSchool
+              );
+            } else {
+              // 기존 로직 유지 (사용자 자신의 학교)
+              postsData = postsData.filter(
+                (post) =>
+                  post.schoolId === user.schoolId ||
+                  post.schoolName === user.schoolName,
+              );
+            }
           }
 
           // 클라이언트 측에서 정렬
@@ -81,7 +90,7 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
       }
     };
     fetchPosts();
-  }, [selectedCategory, isLoggedIn, isNationalCategory, user, setPosts]);
+  }, [selectedCategory, isLoggedIn, isNationalCategory, user, setPosts, selectedSchool]);
 
   const handlePostClick = (postId: string) => {
     router.push(`/community/${selectedCategory}/${postId}`);

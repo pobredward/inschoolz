@@ -11,6 +11,7 @@ import {
   userLevelState,
   categoriesState,
   selectedCategoryState,
+  selectedSchoolState,
 } from "../store/atoms";
 import { User } from "../types";
 import { compressImage } from "../utils/imageUtils";
@@ -26,6 +27,8 @@ import dynamic from "next/dynamic";
 import "react-quill/dist/quill.snow.css";
 const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 import CategoryPanel from "./CategoryPanel";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 const CreatePostPage: React.FC = () => {
   const [title, setTitle] = useState("");
@@ -55,6 +58,7 @@ const CreatePostPage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const categories = useRecoilValue(categoriesState);
   const [selectedCategory] = useRecoilState(selectedCategoryState);
+  const selectedSchool = useRecoilValue(selectedSchoolState);
 
   const getCategoryName = (categoryId: string) => {
     for (let cat of categories) {
@@ -97,15 +101,13 @@ const CreatePostPage: React.FC = () => {
   const noticeContent = `
     📜 커뮤니티 이용 가이드 📜
 
-    1. 존중과 배려: 다른 사람을 존중하고 배려하는 내용만 작성해 주세요. 비방, 욕설, 차별적인 표현은 금지됩니다.
-    2. 관련 주제 작성: 게시글은 반드시 해당 카테고리에 맞는 주제로 작성해 주세요. 주제와 무관한 게시글은 삭제될 수 있습니다.
-    3. 허위 정보 금지: 허위 정보나 잘못된 정보를 유포하지 말아 주세요. 검증된 사실만을 공유해 주세요.
-    4. 저작권 준수: 저작권이 있는 자료를 무단으로 게시하지 말아 주세요. 창작자의 권리를 존중해 주세요.
-    5. 사생활 보호: 개인 정보나 사생활 침해 소지가 있는 내용을 공유하지 말아 주세요.
-    6. 불법 및 유해 콘텐츠 금지: 불법적이거나 유해한 콘텐츠를 게시하지 말아 주세요. 모든 사용자가 안전하게 이용할 수 있도록 해주세요.
-    7. 도배성 게시글 금지: 동일하거나 유사한 내용의 게시글을 반복적으로 작성하지 말아 주세요. 도배성 행위는 다른 사용자의 커뮤니티 이용에 불편을 줄 수 있으며, 경고 없이 삭제 및 제재될 수 있습니다.
-
-    규칙을 위반하는 경우 경고 또는 계정 제한이 있을 수 있습니다. 모두가 쾌적한 커뮤니티 환경을 즐길 수 있도록 협조 부탁드립니다.
+    - 존중과 배려: 다른 사람을 존중하고 배려하는 내용만 작성해 주세요. 비방, 욕설, 차별적인 표현은 금지됩니다.
+    - 관련 주제 작성: 게시글은 반드시 해당 카테고리에 맞는 주제로 작성해 주세요. 주제와 무관한 게시글은 삭제될 수 있습니다.
+    - 허위 정보 금지: 허위 정보나 잘못된 정보를 유포하지 말아 주세요. 검증된 사실만을 공유해 주세요.
+    - 저작권 준수: 저작권이 있는 자료를 무단으로 게시하지 말아 주세요. 창작자의 권리를 존중해 주세요.
+    - 사생활 보호: 개인 정보나 사생활 침해 소지가 있는 내용을 공유하지 말아 주세요.
+    - 불법 및 유해 콘텐츠 금지: 불법적이거나 유해한 콘텐츠를 게시하지 말아 주세요. 모든 사용자가 안전하게 이용할 수 있도록 해주세요.
+    - 도배성 게시글 금지: 동일하거나 유사한 내용의 게시글을 반복적으로 작성하지 말아 주세요. 도배성 행위는 다른 사용자의 커뮤니티 이용에 불편을 줄 수 있으며, 경고 없이 삭제 및 제재될 수 있습니다.
   `;
 
   useEffect(() => {
@@ -196,6 +198,25 @@ const CreatePostPage: React.FC = () => {
     }
 
     try {
+      // 선택된 카테고리가 school-student이고 selectedSchool이 있는 경우 
+      // 선택한 학교 정보를 사용
+      let schoolId = user.schoolId || "";
+      let schoolName = user.schoolName || "";
+      
+      if (category === "school-student" && selectedSchool && selectedSchool !== "") {
+        // 선택한 학교 정보를 가져옴
+        try {
+          const schoolDoc = await getDoc(doc(db, "schools", selectedSchool));
+          if (schoolDoc.exists()) {
+            const schoolData = schoolDoc.data();
+            schoolId = selectedSchool;
+            schoolName = schoolData.KOR_NAME;
+          }
+        } catch (error) {
+          console.error("학교 정보를 가져오는 중 오류 발생:", error);
+        }
+      }
+
       // 게시글 먼저 생성하여 postId를 받음
       const newPost = {
         title,
@@ -205,8 +226,8 @@ const CreatePostPage: React.FC = () => {
         categoryId: category,
         address1: user.address1 || "",
         address2: user.address2 || "",
-        schoolId: user.schoolId || "",
-        schoolName: user.schoolName || "",
+        schoolId: schoolId,
+        schoolName: schoolName,
         imageUrls: [], // 이미지를 나중에 추가할 것이므로 빈 배열
         isVotePost,
         voteOptions: null, // 이 부분도 나중에 추가
@@ -303,11 +324,12 @@ const CreatePostPage: React.FC = () => {
           <CategoryPanel isOpen={isMobileMenuOpen} />
           <MainContent isMobileMenuOpen={isMobileMenuOpen}>
             <Header>
-              <h1>게시글 작성</h1>
-              <InfoContainer onClick={() => setIsNoticeOpen(true)}>
-                <ResponsiveIcon />
-                <InfoText>작성 원칙</InfoText>
-              </InfoContainer>
+              <TitleContainer>
+                <h1>게시글 작성</h1>
+                <InfoIcon onClick={() => setIsNoticeOpen(true)}>
+                  <FaInfoCircle />
+                </InfoIcon>
+              </TitleContainer>
             </Header>
             <Form onSubmit={handleSubmit}>
               <Input
@@ -453,7 +475,7 @@ const CreatePostPage: React.FC = () => {
       <DefaultModal
         isOpen={isNoticeOpen}
         onClose={() => setIsNoticeOpen(false)}
-        title="작성 원칙"
+        title="📜 작성 원칙"
         message={noticeContent}
         height="500px"
       />
@@ -555,37 +577,19 @@ const Header = styled.div`
   }
 `;
 
-const InfoContainer = styled.div`
+const TitleContainer = styled.div`
   display: flex;
   align-items: center;
+`;
+
+const InfoIcon = styled.div`
+  color: #4a6dff;
   cursor: pointer;
-  color: #999;
-
+  margin-left: 10px;
+  font-size: 1.2rem;
+  
   &:hover {
-    color: #666;
-  }
-`;
-
-const ResponsiveIcon = styled(FaInfoCircle)`
-  font-size: 18px;
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-  }
-
-  @media (max-width: 360px) {
-    font-size: 12px;
-  }
-`;
-
-const InfoText = styled.span`
-  margin-left: 0.4rem;
-  font-size: 1rem;
-  font-weight: bold;
-  color: #999;
-
-  @media (max-width: 768px) {
-    font-size: 0.9rem;
+    color: #2a4ddf;
   }
 `;
 

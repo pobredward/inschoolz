@@ -93,12 +93,12 @@ export const selectedCategoryState = atom<string>({
   default: "national-all",
 });
 
+export const selectedSchoolState = atom<string>({
+  key: "selectedSchoolState",
+  default: "",
+});
+
 export const searchResultsState = atom<School[]>({
   key: "searchResultsState",
   default: [],
-});
-
-export const selectedSchoolState = atom<School | null>({
-  key: "selectedSchoolState",
-  default: null,
 });

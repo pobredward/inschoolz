@@ -9,14 +9,13 @@ import { useMutation } from "react-query";
 import SchoolSearchEdit from "../../components/SchoolSearchEdit";
 import AddressSelector from "../../components/AddressSelector";
 import { errorMessages } from "../../utils/errorMessages";
+import { School } from "../../types";
 
 const EditMyInfo: React.FC = () => {
   const [user, setUser] = useRecoilState(userState);
   const [editedUser, setEditedUser] = useState(user);
   const router = useRouter();
-  const [initialSchool, setInitialSchool] = useState<
-    { id: string; KOR_NAME: string; ADDRESS: string } | undefined
-  >(undefined);
+  const [initialSchool, setInitialSchool] = useState<School | undefined>(undefined);
 
   const updateProfileMutation = useMutation(
     (updatedData: Partial<typeof user>) =>
@@ -99,20 +98,29 @@ const EditMyInfo: React.FC = () => {
             />
           </FormGroup>
           <FormGroup>
-            <Label>주소</Label>
-            <AddressSelector
-              address1={editedUser?.address1 || ""}
-              address2={editedUser?.address2 || ""}
-              setAddress1={(value) => handleAddressChange("address1", value)}
-              setAddress2={(value) => handleAddressChange("address2", value)}
+            <Label htmlFor="phone">전화번호</Label>
+            <Input
+              type="tel"
+              id="phone"
+              name="phoneNumber"
+              value={editedUser?.phoneNumber || ""}
+              onChange={handleInputChange}
+              required
             />
           </FormGroup>
           <FormGroup>
-            <Label>학교</Label>
+            <Label htmlFor="school">학교</Label>
             <SchoolSearchEdit
               initialSchool={initialSchool}
-              setSchool={handleSchoolChange}
-              preventFormSubmit={true}
+              onSelectSchool={handleSchoolChange}
+            />
+          </FormGroup>
+          <FormGroup>
+            <Label htmlFor="address">주소</Label>
+            <AddressSelector
+              address1={editedUser?.address1 || ""}
+              address2={editedUser?.address2 || ""}
+              onChange={handleAddressChange}
             />
           </FormGroup>
           <GradeClassWrapper>
@@ -170,12 +178,12 @@ const EditMyInfo: React.FC = () => {
               />
             </BirthDateContainer>
           </FormGroup>
-          <ButtonContainer>
-            <BackButton onClick={handleBack} type="button">
-              뒤로
-            </BackButton>
-            <SaveButton type="submit">저장</SaveButton>
-          </ButtonContainer>
+          <ButtonGroup>
+            <Button type="button" onClick={handleBack}>
+              취소
+            </Button>
+            <SubmitButton type="submit">저장</SubmitButton>
+          </ButtonGroup>
         </Form>
       </Container>
     </Layout>
@@ -210,27 +218,13 @@ const Input = styled.input`
   border-radius: 4px;
 `;
 
-const ButtonContainer = styled.div`
+const ButtonGroup = styled.div`
   display: flex;
   justify-content: space-between;
   margin-top: 1rem;
 `;
 
-const SaveButton = styled.button`
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  background-color: var(--primary-button);
-  color: white;
-
-  &:hover {
-    background-color: var(--primary-hover);
-  }
-`;
-
-const BackButton = styled.button`
+const Button = styled.button`
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 4px;
@@ -241,6 +235,20 @@ const BackButton = styled.button`
 
   &:hover {
     background-color: var(--gray-hover);
+  }
+`;
+
+const SubmitButton = styled.button`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  background-color: var(--primary-button);
+  color: white;
+
+  &:hover {
+    background-color: var(--primary-hover);
   }
 `;
 

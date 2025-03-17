@@ -33,6 +33,7 @@ import {
   getExperienceSettings,
   ExperienceSettings,
 } from "../../utils/experience";
+import FavoriteSchoolManager from "../../components/FavoriteSchoolManager";
 
 const MyPage: React.FC = () => {
   const setUser = useSetRecoilState(userState);
@@ -102,14 +103,15 @@ const MyPage: React.FC = () => {
 
   const expGuideContent = expSettings
     ? `
-    게시글 작성: ${expSettings.postCreation}XP (하루 ${expSettings.maxDailyPosts}회 까지)
-    댓글 작성: ${expSettings.commentCreation}XP (하루 ${expSettings.maxDailyComments}회 까지)
-    반응속도 게임: ${expSettings.reactionGameThreshold}ms 이하로 클리어 시 ${expSettings.reactionGameExperience}XP 획득
-    플래피 버드: ${expSettings.flappyBirdThreshold}점 이상 획득 시 ${expSettings.flappyBirdExperience}XP 획득
-    타일 게임: ${expSettings.tileGameThreshold}점 이상 획득 시 ${expSettings.tileGameExperience}XP 획득
-    게임은 하루 ${expSettings.maxDailyGames}회까지 플레이가 가능
+    ⭐ 경험치 획득 가이드 ⭐
 
-    친구 초대: ${expSettings.friendInvitation}XP
+    - 게시글 작성: ${expSettings.postCreation}XP (하루 ${expSettings.maxDailyPosts}회 까지)
+    - 댓글 작성: ${expSettings.commentCreation}XP (하루 ${expSettings.maxDailyComments}회 까지)
+    - 반응속도 게임: ${expSettings.reactionGameThreshold}ms 이하로 클리어 시 ${expSettings.reactionGameExperience}XP 획득
+    - 플래피 버드: ${expSettings.flappyBirdThreshold}점 이상 획득 시 ${expSettings.flappyBirdExperience}XP 획득
+    - 타일 게임: ${expSettings.tileGameThreshold}점 이상 획득 시 ${expSettings.tileGameExperience}XP 획득
+    - 게임은 하루 ${expSettings.maxDailyGames}회까지 플레이가 가능
+    - 친구 초대: ${expSettings.friendInvitation}XP
   `
     : "경험치 정보를 불러오는 중...";
 
@@ -149,9 +151,11 @@ const MyPage: React.FC = () => {
     return (
       <Layout>
         <LoginContainer>
-          <LoginMessage>로그인하여 내 정보를 확인하세요!</LoginMessage>
+          <LoginMessage>
+            마이페이지를 이용하기 위해선 로그인이 필요합니다.
+          </LoginMessage>
           <LoginButton onClick={() => router.push("/login")}>
-            로그인
+            로그인하기
           </LoginButton>
         </LoginContainer>
       </Layout>
@@ -179,10 +183,12 @@ const MyPage: React.FC = () => {
 
           <ExperienceContainer>
             <LevelInfoContainer>
-              <LevelInfo>LV.{userLevel}</LevelInfo>
-              <ExpGuideButton onClick={handleExpGuideClick}>
-                <FaInfoCircle size={20} />
-              </ExpGuideButton>
+              <TitleContainer>
+                <LevelInfo>LV.{userLevel}</LevelInfo>
+                <InfoIcon onClick={handleExpGuideClick}>
+                  <FaInfoCircle size={20} />
+                </InfoIcon>
+              </TitleContainer>
             </LevelInfoContainer>
             <ExperienceBar>
               <ExperienceFill
@@ -220,6 +226,10 @@ const MyPage: React.FC = () => {
 
         <Section>
           <AttendanceCheck />
+        </Section>
+
+        <Section>
+          <FavoriteSchoolManager />
         </Section>
 
         <Section>
@@ -276,7 +286,7 @@ const MyPage: React.FC = () => {
       <DefaultModal
         isOpen={showExpGuideModal}
         onClose={() => setShowExpGuideModal(false)}
-        title="경험치 획득 가이드"
+        title="⭐ 경험치 획득 가이드"
         message={expGuideContent}
       />
     </Layout>
@@ -310,23 +320,28 @@ const LoginButton = styled.button`
   }
 `;
 
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+`;
+
+const InfoIcon = styled.div`
+  color: #4a6dff;
+  cursor: pointer;
+  margin-left: 10px;
+  
+  &:hover {
+    color: #2a4ddf;
+  }
+`;
+
 const LevelInfoContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
   margin-bottom: 0.5rem;
-`;
-
-const ExpGuideButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #666;
-
-  &:hover {
-    color: #333;
-  }
 `;
 
 const ExperienceContainer = styled.div`

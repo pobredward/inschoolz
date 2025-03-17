@@ -51,6 +51,36 @@ export const toggleFavoriteMinorGallery = async (
   }
 };
 
+export const toggleFavoriteSchool = async (
+  userId: string,
+  schoolId: string
+) => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const favoriteSchools = userData.favoriteSchools || [];
+
+      if (favoriteSchools.includes(schoolId)) {
+        // Remove from favorites
+        await updateDoc(userRef, {
+          favoriteSchools: arrayRemove(schoolId),
+        });
+      } else {
+        // Add to favorites
+        await updateDoc(userRef, {
+          favoriteSchools: arrayUnion(schoolId),
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error toggling favorite school:", error);
+    throw error;
+  }
+};
+
 export const deleteUser = async (
   userId: string,
   password: string

@@ -6,8 +6,9 @@ import { db } from "../lib/firebase"; // 클라이언트 측 Firebase 설정
 interface AddressSelectorProps {
   address1: string;
   address2: string;
-  setAddress1: (value: string) => void;
-  setAddress2: (value: string) => void;
+  setAddress1?: (value: string) => void;
+  setAddress2?: (value: string) => void;
+  onChange?: (field: "address1" | "address2", value: string) => void;
 }
 
 const AddressSelector: React.FC<AddressSelectorProps> = ({
@@ -15,6 +16,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
   address2,
   setAddress1,
   setAddress2,
+  onChange,
 }) => {
   const [address1Options, setAddress1Options] = useState<string[]>([]);
   const [address2Options, setAddress2Options] = useState<string[]>([]);
@@ -43,14 +45,32 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
     fetchAddress2Options();
   }, [address1]);
 
+  const handleAddress1Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (onChange) {
+      onChange("address1", value);
+    } else if (setAddress1) {
+      setAddress1(value);
+    }
+    if (setAddress2) {
+      setAddress2("");
+    }
+  };
+
+  const handleAddress2Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (onChange) {
+      onChange("address2", value);
+    } else if (setAddress2) {
+      setAddress2(value);
+    }
+  };
+
   return (
     <>
       <Select
         value={address1}
-        onChange={(e) => {
-          setAddress1(e.target.value);
-          setAddress2("");
-        }}
+        onChange={handleAddress1Change}
       >
         <option value="">시/도 선택</option>
         {address1Options.map((option) => (
@@ -61,7 +81,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
       </Select>
       <Select
         value={address2}
-        onChange={(e) => setAddress2(e.target.value)}
+        onChange={handleAddress2Change}
         disabled={!address1}
       >
         <option value="">시/군/구 선택</option>

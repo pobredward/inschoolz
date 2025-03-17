@@ -159,10 +159,12 @@ const ReportManagement: React.FC = () => {
   };
 
   const handleContentTypeClick = (content: ReportedContent) => {
-    const path =
-      content.type === "post"
-        ? `/posts/${content.id}`
-        : `/posts/${content.postId}#comment-${content.id}`;
+    let path;
+    if (content.type === "post") {
+      path = `/community/post/${content.id}`;
+    } else {
+      path = `/community/post/${content.postId}#comment-${content.id}`;
+    }
     router.push(path);
   };
 
@@ -195,6 +197,11 @@ const ReportManagement: React.FC = () => {
         alert("신고 재활성화 중 오류가 발생했습니다.");
       }
     }
+  };
+
+  const stripHtmlTags = (html: string) => {
+    if (!html) return '';
+    return html.replace(/<\/?[^>]+(>|$)/g, "");
   };
 
   return (
@@ -232,7 +239,7 @@ const ReportManagement: React.FC = () => {
                   {content.type === "post" ? "게시글" : "댓글"}:{" "}
                   {content.title || "제목 없음"}
                 </ContentType>
-                <ContentText>{content.content}</ContentText>
+                <ContentText>{stripHtmlTags(content.content)}</ContentText>
                 <ContentAuthor>작성자: {content.author}</ContentAuthor>
                 <ReportCount>신고 수: {content.reportCount}</ReportCount>
                 <ButtonContainer>
@@ -274,7 +281,7 @@ const ReportManagement: React.FC = () => {
                 <ContentType onClick={() => handleContentTypeClick(report)}>
                   {report.type === "post" ? "게시글" : "댓글"}
                 </ContentType>
-                <ContentText>{report.content}</ContentText>
+                <ContentText>{stripHtmlTags(report.content)}</ContentText>
                 <ContentAuthor>작성자: {report.author}</ContentAuthor>
                 <CompletedDate>
                   처리 일시: {formatDate(report.completedAt)}

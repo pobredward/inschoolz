@@ -141,13 +141,12 @@ const GameTitle = styled.h2`
 `;
 
 const InfoIcon = styled.div`
-  position: absolute;
-  right: 0;
+  color: #4a6dff;
   cursor: pointer;
-  color: #666;
-
+  margin-left: 10px;
+  
   &:hover {
-    color: #333;
+    color: #2a4ddf;
   }
 `;
 

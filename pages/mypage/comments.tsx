@@ -56,108 +56,216 @@ const CommentsPage: React.FC = () => {
   const fetchCommentedPosts = async () => {
     if (!user) return;
     setLoading(true);
-    const commentsRef = collection(db, `users/${user.uid}/comments`);
-    const q = query(commentsRef, orderBy("createdAt", "desc"), limit(20));
-    const querySnapshot = await getDocs(q);
+    
+    try {
+      console.log("댓글 데이터 가져오기 시작...");
+      
+      // 1. 사용자의 모든 댓글을 가져옵니다
+      const commentsRef = collection(db, `users/${user.uid}/comments`);
+      const q = query(commentsRef, orderBy("createdAt", "desc"), limit(20));
+      const querySnapshot = await getDocs(q);
 
-    const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-    setLastVisible(lastVisibleDoc);
+      if (querySnapshot.empty) {
+        console.log("댓글 데이터가 없습니다.");
+        setLoading(false);
+        return;
+      }
 
-    const postsMap = new Map<string, Post>();
+      console.log(`총 ${querySnapshot.docs.length}개의 댓글을 가져왔습니다.`);
+      
+      // 마지막 문서 설정 (페이징용)
+      if (querySnapshot.docs.length > 0) {
+        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+      }
 
-    for (const commentDoc of querySnapshot.docs) {
-      const commentData = commentDoc.data();
-      const postRef = doc(db, "posts", commentData.postId);
-      const postSnap = await getDoc(postRef);
-
-      if (postSnap.exists()) {
-        const postData = postSnap.data() as Post;
-        if (postsMap.has(postData.id)) {
-          const existingPost = postsMap.get(postData.id)!;
-          existingPost.userComments.push({
-            id: commentDoc.id,
-            content: commentData.content,
-            createdAt: commentData.createdAt,
-            isReply: !!commentData.parentId,
-            parentId: commentData.parentId,
-          });
-        } else {
-          postsMap.set(postData.id, {
-            ...postData,
-            id: postSnap.id,
-            userComments: [
-              {
-                id: commentDoc.id,
-                content: commentData.content,
-                createdAt: commentData.createdAt,
-                isReply: !!commentData.parentId,
-                parentId: commentData.parentId,
-              },
-            ],
+      // 2. 댓글들이 속한 게시글의 고유 ID 목록을 추출합니다
+      const postIds = new Set<string>();
+      const commentsData: any[] = [];
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.postId) {
+          postIds.add(data.postId);
+          commentsData.push({
+            id: doc.id,
+            ...data
           });
         }
+      });
+      
+      console.log(`댓글이 속한 고유 게시글 수: ${postIds.size}개`);
+      console.log("게시글 ID 목록:", Array.from(postIds));
+      
+      if (postIds.size === 0) {
+        console.log("유효한 게시글이 없습니다.");
+        setLoading(false);
+        return;
       }
+      
+      // 3. 각 게시글 정보를 별도로 가져옵니다
+      const postsData: Post[] = [];
+      
+      for (const postId of Array.from(postIds)) {
+        try {
+          const postDoc = await getDoc(doc(db, "posts", postId));
+          
+          if (postDoc.exists()) {
+            const postData = postDoc.data();
+            console.log(`게시글 [${postId}] 제목: ${postData.title}`);
+            
+            // 이 게시글에 속한 사용자 댓글들 필터링
+            const postComments = commentsData
+              .filter(comment => comment.postId === postId)
+              .map(comment => ({
+                id: comment.id,
+                content: comment.content || "(내용 없음)",
+                createdAt: comment.createdAt,
+                isReply: !!comment.parentId,
+                parentId: comment.parentId
+              }));
+            
+            console.log(`게시글 [${postId}]에 속한 댓글 수: ${postComments.length}개`);
+            
+            // 게시글 객체 생성
+            postsData.push({
+              id: postId,
+              title: postData.title || "제목 없음",
+              content: postData.content || "",
+              createdAt: postData.createdAt,
+              author: postData.author || "작성자 없음",
+              comments: postData.comments || 0,
+              likes: postData.likes || 0,
+              views: postData.views || 0,
+              categoryId: postData.categoryId || "",
+              userComments: postComments
+            });
+          } else {
+            console.log(`게시글 [${postId}]이 존재하지 않습니다.`);
+          }
+        } catch (error) {
+          console.error(`게시글 [${postId}] 로딩 중 오류:`, error);
+        }
+      }
+      
+      console.log(`최종 로드된 게시글 수: ${postsData.length}개`);
+      postsData.forEach(post => {
+        console.log(`- 게시글 [${post.id}]: ${post.title}, 댓글 ${post.userComments.length}개`);
+      });
+      
+      // 4. UI에 표시할 최종 데이터 설정
+      setPosts(postsData);
+    } catch (error) {
+      console.error("댓글 로딩 중 오류 발생:", error);
+    } finally {
+      setLoading(false);
     }
-
-    setPosts(Array.from(postsMap.values()));
-    setLoading(false);
   };
 
   const fetchMoreCommentedPosts = async () => {
     if (!user || !lastVisible) return;
     setLoading(true);
-    const commentsRef = collection(db, `users/${user.uid}/comments`);
-    const q = query(
-      commentsRef,
-      orderBy("createdAt", "desc"),
-      startAfter(lastVisible),
-      limit(20),
-    );
-    const querySnapshot = await getDocs(q);
-
-    const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-    setLastVisible(lastVisibleDoc);
-
-    const newPostsMap = new Map<string, Post>(
-      posts.map((post) => [post.id, post]),
-    );
-
-    for (const commentDoc of querySnapshot.docs) {
-      const commentData = commentDoc.data();
-      const postRef = doc(db, "posts", commentData.postId);
-      const postSnap = await getDoc(postRef);
-
-      if (postSnap.exists()) {
-        const postData = postSnap.data() as Post;
-        if (newPostsMap.has(postData.id)) {
-          const existingPost = newPostsMap.get(postData.id)!;
-          existingPost.userComments.push({
-            id: commentDoc.id,
-            content: commentData.content,
-            createdAt: commentData.createdAt,
-            isReply: !!commentData.parentId,
-            parentId: commentData.parentId,
-          });
-        } else {
-          newPostsMap.set(postData.id, {
-            ...postData,
-            id: postSnap.id,
-            userComments: [
-              {
-                id: commentDoc.id,
-                content: commentData.content,
-                createdAt: commentData.createdAt,
-                isReply: !!commentData.parentId,
-                parentId: commentData.parentId,
-              },
-            ],
+    
+    try {
+      // 1. 다음 페이지의 댓글을 가져옵니다
+      const commentsRef = collection(db, `users/${user.uid}/comments`);
+      const q = query(
+        commentsRef,
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(20)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      // 마지막 문서 갱신
+      if (querySnapshot.docs.length > 0) {
+        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+      } else {
+        console.log("더 이상 댓글이 없습니다.");
+        setLoading(false);
+        return;
+      }
+      
+      // 2. 댓글들이 속한 게시글의 고유 ID 목록 추출
+      const postIds = new Set<string>();
+      const commentsData: any[] = [];
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.postId) {
+          postIds.add(data.postId);
+          commentsData.push({
+            id: doc.id,
+            ...data
           });
         }
+      });
+      
+      // 3. 현재 로드된 게시글들의 ID 목록
+      const existingPostIds = new Set(posts.map(post => post.id));
+      const newPostIds = Array.from(postIds).filter(id => !existingPostIds.has(id));
+      
+      // 4. 새 게시글 정보와 기존 게시글의 새 댓글 처리
+      const updatedPosts = [...posts];
+      
+      // 이미 로드된 게시글에 새 댓글 추가
+      for (const postId of Array.from(postIds)) {
+        // 이 게시글에 속한 댓글들
+        const postComments = commentsData
+          .filter(comment => comment.postId === postId)
+          .map(comment => ({
+            id: comment.id,
+            content: comment.content || "(내용 없음)",
+            createdAt: comment.createdAt,
+            isReply: !!comment.parentId,
+            parentId: comment.parentId
+          }));
+        
+        // 이미 로드된 게시글이면 댓글만 추가
+        const existingPostIndex = updatedPosts.findIndex(p => p.id === postId);
+        if (existingPostIndex >= 0) {
+          // ID 기준으로 중복 댓글은 제외하고 추가
+          const existingCommentIds = new Set(updatedPosts[existingPostIndex].userComments.map(c => c.id));
+          const newComments = postComments.filter(c => !existingCommentIds.has(c.id));
+          
+          updatedPosts[existingPostIndex].userComments = [
+            ...updatedPosts[existingPostIndex].userComments,
+            ...newComments
+          ];
+        } 
+        // 새 게시글이면 게시글 정보를 가져와서 추가
+        else if (newPostIds.includes(postId)) {
+          try {
+            const postDoc = await getDoc(doc(db, "posts", postId));
+            
+            if (postDoc.exists()) {
+              const postData = postDoc.data();
+              
+              updatedPosts.push({
+                id: postId,
+                title: postData.title || "제목 없음",
+                content: postData.content || "",
+                createdAt: postData.createdAt,
+                author: postData.author || "작성자 없음",
+                comments: postData.comments || 0,
+                likes: postData.likes || 0,
+                views: postData.views || 0,
+                categoryId: postData.categoryId || "",
+                userComments: postComments
+              });
+            }
+          } catch (error) {
+            console.error(`게시글 [${postId}] 로딩 중 오류:`, error);
+          }
+        }
       }
+      
+      // 5. 최종 데이터 설정
+      setPosts(updatedPosts);
+    } catch (error) {
+      console.error("추가 댓글 로딩 중 오류:", error);
+    } finally {
+      setLoading(false);
     }
-
-    setPosts(Array.from(newPostsMap.values()));
-    setLoading(false);
   };
 
   const getCategoryName = (categoryId: string) => {
@@ -177,29 +285,31 @@ const CommentsPage: React.FC = () => {
     return comments.filter((comment) => comment.parentId).length;
   };
 
+  const stripHtmlTags = (html: string) => {
+    if (!html) return '';
+    return html.replace(/<\/?[^>]+(>|$)/g, "");
+  };
+
   return (
     <Layout>
       <Container>
         <h1>내 댓글</h1>
         <PostContainer>
           {posts.map((post) => (
-            <PostItem
-              key={post.id}
-              onClick={() =>
-                router.push(`/community/${post.categoryId}/${post.id}`)
-              }
-            >
-              <PostHeader>
+            <PostItem key={post.id}>
+              <PostHeader onClick={() => router.push(`/community/${post.categoryId}/${post.id}`)}>
                 <PostTitle>{post.title}</PostTitle>
                 <PostCategory>{getCategoryName(post.categoryId)}</PostCategory>
               </PostHeader>
-              <PostContent>{getPostContentSnippet(post.content)}</PostContent>
+              <PostContent onClick={() => router.push(`/community/${post.categoryId}/${post.id}`)}>
+                {getPostContentSnippet(post.content)}
+              </PostContent>
               <CommentSection>
                 <CommentHeader>
                   내 댓글: {post.userComments.length}개
                 </CommentHeader>
               </CommentSection>
-              <PostFooter>
+              <PostFooter onClick={() => router.push(`/community/${post.categoryId}/${post.id}`)}>
                 <PostDateAuthor>
                   {formatDate(post.createdAt)} | {post.author}
                 </PostDateAuthor>
@@ -248,15 +358,20 @@ const PostContainer = styled.div`
 `;
 
 const PostItem = styled.div`
-  padding: 1.2rem;
+  padding: 1.5rem;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+  gap: 0.5rem;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background-color: white;
+  margin-bottom: 1rem;
 
   &:hover {
-    background-color: #f9f9f9;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
   }
 `;
 
@@ -286,15 +401,20 @@ const PostContent = styled.p`
 `;
 
 const CommentSection = styled.div`
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background-color: #f0f0f0;
+  margin-top: 0.8rem;
+  padding: 1rem;
+  background-color: #f5f5f5;
   border-radius: 4px;
+  border: 1px solid #eaeaea;
 `;
 
 const CommentHeader = styled.h5`
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.8rem 0;
   color: #333;
+  font-size: 1rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+  font-weight: 600;
 `;
 
 const PostFooter = styled.div`

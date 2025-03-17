@@ -59,12 +59,37 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return { notFound: true };
   }
 
+  // Firebase Timestamp를 JSON 직렬화 가능한 형태로 변환하는 유틸리티 함수
+  const convertTimestamps = (obj: any): any => {
+    if (!obj) return obj;
+
+    if (typeof obj.toDate === 'function') {
+      return obj.toDate().toISOString();
+    }
+
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      const result: any = {};
+      Object.keys(obj).forEach(key => {
+        result[key] = convertTimestamps(obj[key]);
+      });
+      return result;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => convertTimestamps(item));
+    }
+
+    return obj;
+  };
+
   const postData = postDoc.data() as Post;
+  
+  // 직렬화 가능한 객체로 변환
+  const serializedPost = convertTimestamps(postData);
+
   const initialPost: Post = {
     id: postDoc.id,
-    ...postData,
-    createdAt: postData.createdAt.toDate().toISOString(),
-    updatedAt: postData.updatedAt.toDate().toISOString(),
+    ...serializedPost,
   };
 
   return { props: { initialPost } };

@@ -13,6 +13,7 @@ import { FaPen, FaBars } from "react-icons/fa";
 import Link from "next/link";
 import { Category } from "../../types";
 import CategoryPanel from "../../components/CategoryPanel";
+import SchoolSelector from "../../components/SchoolSelector";
 
 const CategoryPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useRecoilState(
@@ -103,6 +104,7 @@ const CategoryPage: React.FC = () => {
   }, []);
 
   const isNationalCategory = selectedCategory.startsWith("national-");
+  const isSchoolStudent = selectedCategory === "school-student";
 
   return (
     <Layout>
@@ -134,6 +136,9 @@ const CategoryPage: React.FC = () => {
                     </CreatePostButton>
                   )}
                 </CategoryHeader>
+                
+                {isSchoolStudent && <SchoolSelector />}
+                
                 <PostList
                   selectedCategory={selectedCategory}
                   isLoggedIn={!!user}
