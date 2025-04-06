@@ -106,7 +106,7 @@ const RankingPage: React.FC = () => {
       });
 
       setRankings(rankingsData);
-      setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+      setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] as any);
 
       const countQuery =
         activeTab === "national"

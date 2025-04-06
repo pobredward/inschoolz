@@ -161,7 +161,7 @@ export interface Comment {
 }
 
 export interface CommentSectionProps {
-  postId: string;
+  postId: string | string[] | undefined;
   comments: Comment[];
   setComments: React.Dispatch<React.SetStateAction<Comment[]>>;
   onCommentUpdate: (newCommentCount: number) => void;

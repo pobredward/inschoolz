@@ -102,26 +102,31 @@ const FavoriteSchoolManager: React.FC = () => {
     try {
       await toggleFavoriteSchool(user.uid, schoolId);
       
-      // 로컬 상태 업데이트
-      const updatedFavorites = isRemoving
-        ? user.favoriteSchools.filter(id => id !== schoolId)
-        : [...(user.favoriteSchools || []), schoolId];
+      // 로컬 상태 업데이트 (user.favoriteSchools는 string[] 타입)
+      const userFavoriteSchools = user.favoriteSchools || [];
+      const updatedUserFavorites = isRemoving
+        ? userFavoriteSchools.filter(id => id !== schoolId)
+        : [...userFavoriteSchools, schoolId];
       
       setUser({
         ...user,
-        favoriteSchools: updatedFavorites
+        favoriteSchools: updatedUserFavorites,
       });
       
-      // 즐겨찾기 학교 목록 다시 가져오기
+      // 즐겨찾기 학교 목록 다시 가져오기 (favoriteSchools는 School[] 타입)
       const updatedSchool = searchResults.find(school => school.id === schoolId);
       
       if (updatedSchool) {
         if (isRemoving) {
           // 즐겨찾기에서 제거
-          setFavoriteSchools(favoriteSchools.filter(school => school.id !== schoolId));
+          setFavoriteSchools(prevFavoriteSchools => 
+            prevFavoriteSchools.filter(school => school.id !== schoolId)
+          );
         } else {
           // 즐겨찾기에 추가
-          setFavoriteSchools([...favoriteSchools, updatedSchool]);
+          setFavoriteSchools(prevFavoriteSchools => 
+            [...prevFavoriteSchools, updatedSchool]
+          );
         }
       }
     } catch (error) {

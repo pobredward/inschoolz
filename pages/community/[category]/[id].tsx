@@ -61,25 +61,33 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   // Firebase Timestamp를 JSON 직렬화 가능한 형태로 변환하는 유틸리티 함수
   const convertTimestamps = (obj: any): any => {
-    if (!obj) return obj;
+    if (!obj) return {} as Post;
 
-    if (typeof obj.toDate === 'function') {
-      return obj.toDate().toISOString();
+    const result = { ...obj };
+
+    if (obj.createdAt) {
+      if (obj.createdAt.seconds) {
+        // Date 객체 대신 ISO 문자열로 변환
+        result.createdAt = new Date(obj.createdAt.seconds * 1000).toISOString();
+      } else if (typeof obj.createdAt === 'string') {
+        result.createdAt = obj.createdAt;
+      } else if (obj.createdAt instanceof Date) {
+        result.createdAt = obj.createdAt.toISOString();
+      }
     }
 
-    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-      const result: any = {};
-      Object.keys(obj).forEach(key => {
-        result[key] = convertTimestamps(obj[key]);
-      });
-      return result;
+    if (obj.updatedAt) {
+      if (obj.updatedAt.seconds) {
+        // Date 객체 대신 ISO 문자열로 변환
+        result.updatedAt = new Date(obj.updatedAt.seconds * 1000).toISOString();
+      } else if (typeof obj.updatedAt === 'string') {
+        result.updatedAt = obj.updatedAt;
+      } else if (obj.updatedAt instanceof Date) {
+        result.updatedAt = obj.updatedAt.toISOString();
+      }
     }
 
-    if (Array.isArray(obj)) {
-      return obj.map(item => convertTimestamps(item));
-    }
-
-    return obj;
+    return result;
   };
 
   const postData = postDoc.data() as Post;
@@ -88,8 +96,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const serializedPost = convertTimestamps(postData);
 
   const initialPost: Post = {
-    id: postDoc.id,
     ...serializedPost,
+    id: postDoc.id
   };
 
   return { props: { initialPost } };
@@ -97,7 +105,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
 const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
   const router = useRouter();
-  const { id } = router.query;
+  const { id, category } = router.query;
   const [post, setPost] = useState<Post>(initialPost);
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useRecoilState(commentsState);
@@ -133,10 +141,35 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const pageRef = useRef(null);
+  const pageRef = useRef<HTMLDivElement>(null);
   const [selectedCategory, setSelectedCategory] = useRecoilState(
     selectedCategoryState,
   );
+
+  // 컴포넌트 내부에 convertTimestamps 함수 정의
+  const convertTimestamps = (data: any): Post => {
+    if (!data) return {} as Post;
+    
+    const result = { ...data };
+    
+    if (data.createdAt) {
+      if (data.createdAt.seconds) {
+        result.createdAt = new Date(data.createdAt.seconds * 1000);
+      } else if (typeof data.createdAt === 'string') {
+        result.createdAt = new Date(data.createdAt);
+      }
+    }
+    
+    if (data.updatedAt) {
+      if (data.updatedAt.seconds) {
+        result.updatedAt = new Date(data.updatedAt.seconds * 1000);
+      } else if (typeof data.updatedAt === 'string') {
+        result.updatedAt = new Date(data.updatedAt);
+      }
+    }
+    
+    return result as Post;
+  };
 
   const ProfileImage = ({ src, alt }) => {
     return src ? (
@@ -173,7 +206,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
   };
 
   const handleClickOutside = (event: MouseEvent) => {
-    if (pageRef.current && !pageRef.current.contains(event.target as Node)) {
+    if (pageRef.current && !(pageRef.current as HTMLDivElement).contains(event.target as Node)) {
       setIsMobileMenuOpen(false);
     }
   };
@@ -227,23 +260,10 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
       if (id) {
         const docRef = doc(db, "posts", id as string);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const postData = docSnap.data();
-          const authorRef = doc(db, "users", postData.authorId);
-          const authorSnap = await getDoc(authorRef);
-          const authorData = authorSnap.data();
-
-          const formattedPost: Post = {
-            id: docSnap.id,
-            ...postData,
-            authorProfileImage: authorData?.profileImageUrl || null,
-            createdAt: postData.createdAt
-              ? new Date(postData.createdAt.seconds * 1000)
-              : new Date(),
-            updatedAt: postData.updatedAt
-              ? new Date(postData.updatedAt.seconds * 1000)
-              : new Date(),
-          } as Post;
+        if (docSnap.exists() || initialPost) {
+          const formattedPost = post
+            ? post
+            : (convertTimestamps(docSnap.data() || initialPost) as Post);
           setPost(formattedPost);
           setEditedTitle(formattedPost.title);
           setEditedContent(formattedPost.content);
@@ -252,7 +272,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
           setPreviewImages(formattedPost.imageUrls || []);
           setExistingImages(formattedPost.imageUrls || []);
         } else {
-          setPost(null);
+          setPost({} as Post);
         }
         setLoading(false);
       }
@@ -546,8 +566,14 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
     return ((post.voteResults?.[optionIndex] || 0) / totalVotes) * 100;
   };
 
-  const hasUserVoted = user && post.voterIds?.includes(user.uid);
-  const userChoice = user ? post.voterChoices?.[user.uid] : null;
+  const hasUserVoted = Boolean(user && post.voterIds?.includes(user.uid));
+  const userChoice = user && post.voterChoices ? post.voterChoices[user.uid] : null;
+
+  // ID를 안전하게 문자열로 얻는 함수
+  const getPostId = (): string => {
+    if (!id) return '';
+    return Array.isArray(id) ? id[0] : String(id);
+  };
 
   if (loading) {
     return (
@@ -616,16 +642,24 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
         setLiked(true);
       }
 
+      // 클라이언트에서의 상태 업데이트 로직
       const updatedPost = { ...post };
-      if (liked) {
-        updatedPost.likes -= 1;
-        updatedPost.likedBy = updatedPost.likedBy.filter(
-          (uid: string) => uid !== user.uid,
-        );
-      } else {
-        updatedPost.likes += 1;
-        updatedPost.likedBy.push(user.uid);
+      // likedBy 필드가 있는 경우 likedBy 필드 업데이트
+      if (updatedPost.likedBy) {
+        if (liked) {
+          updatedPost.likedBy = updatedPost.likedBy.filter(
+            (uid: string) => uid !== user.uid
+          );
+        } else {
+          updatedPost.likedBy = [...(updatedPost.likedBy || []), user.uid];
+        }
       }
+      
+      // 숫자형 likes 카운터도 업데이트
+      if (typeof updatedPost.likes === 'number') {
+        updatedPost.likes = liked ? (updatedPost.likes || 0) - 1 : (updatedPost.likes || 0) + 1;
+      }
+      
       setPost(updatedPost);
     } catch (error) {
       console.error("Error updating likes: ", error);
@@ -859,7 +893,9 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
                               alt={`Vote option ${index + 1}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openVoteImageModal(option.imageUrl);
+                                if (option.imageUrl) {
+                                  openVoteImageModal(option.imageUrl);
+                                }
                               }}
                             />
                           )}
@@ -909,7 +945,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
               )}
             </PostContainer>
             <CommentSection
-              postId={id as string}
+              postId={getPostId() as string}
               comments={comments}
               setComments={setComments}
               onCommentUpdate={handleCommentUpdate}

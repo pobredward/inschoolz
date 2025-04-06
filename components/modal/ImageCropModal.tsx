@@ -54,7 +54,7 @@ const ImageCropModal = ({ user, setProfileImageUrl, onClose }) => {
     if (user?.profileImageUrl) {
       await deleteImage(user.profileImageUrl);
     }
-    await updateUserProfile(user!.uid, { profileImageUrl: null });
+    await updateUserProfile(user!.uid, { profileImageUrl: undefined });
     setProfileImageUrl(null);
     onClose();
   };

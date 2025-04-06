@@ -57,10 +57,11 @@ const CategoryPanel: React.FC<CategoryPanelProps> = ({ isOpen }) => {
 
   const handleToggleFavorite = async (galleryId: string) => {
     if (user) {
-      const isFavorite = user.favoriteGalleries?.includes(galleryId);
+      const isFavorite = user.favoriteGalleries?.includes(galleryId) || false;
+      const favoriteGalleries = user.favoriteGalleries || [];
       const updatedFavorites = isFavorite
-        ? user.favoriteGalleries.filter((id) => id !== galleryId)
-        : [...user.favoriteGalleries, galleryId];
+        ? favoriteGalleries.filter((id) => id !== galleryId)
+        : [...favoriteGalleries, galleryId];
 
       setUser({
         ...user,
@@ -164,7 +165,7 @@ const CategoryPanel: React.FC<CategoryPanelProps> = ({ isOpen }) => {
                           <StarIcon
                             isFavorite={user?.favoriteGalleries?.includes(
                               minorGallery.id
-                            )}
+                            ) || false}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleToggleFavorite(minorGallery.id);
@@ -225,7 +226,7 @@ const ResetButton = styled(SearchButton)`
   background-color: #6c757d;
 `;
 
-const StarIcon = styled.span<{ isFavorite: boolean }>`
+const StarIcon = styled.span<{ isFavorite?: boolean }>`
   color: ${({ isFavorite }) => (isFavorite ? "gold" : "#ccc")};
   cursor: pointer;
   font-size: 1rem;

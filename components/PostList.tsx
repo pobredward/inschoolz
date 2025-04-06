@@ -18,7 +18,7 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageGroup, setCurrentPageGroup] = useState(1); // 페이지 그룹 상태
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPosts, setFilteredPosts] = useState([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [dateFilter, setDateFilter] = useState("all");
   const [searchScope, setSearchScope] = useState("all");
 
@@ -45,8 +45,8 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
           }
           const querySnapshot = await getDocs(q);
           let postsData = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
             ...(doc.data() as Post),
+            id: doc.id,  // spread 연산자 뒤에 id를 지정하여 기존 id를 덮어씁니다
           }));
 
           // 지역 카테고리 필터링

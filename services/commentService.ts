@@ -19,7 +19,10 @@ import { db } from "../lib/firebase";
 import { deleteCommentImage } from "./imageService";
 import { Comment } from "../types";
 
-export const fetchComments = async (postId: string): Promise<Comment[]> => {
+export const fetchComments = async (postId: string | null): Promise<Comment[]> => {
+  // postId가 null인 경우 빈 배열 반환
+  if (!postId) return [];
+  
   const commentsRef = collection(db, "comments");
   const q = query(
     commentsRef,
@@ -31,14 +34,17 @@ export const fetchComments = async (postId: string): Promise<Comment[]> => {
   querySnapshot.forEach((doc) => {
     const commentData = doc.data() as Comment; // Type assertion
     comments.push({
-      id: doc.id,
-      ...commentData, // Spread the commentData to include all properties
+      ...commentData, // 먼저 commentData를 펼치고
+      id: doc.id,     // 그 다음 id를 설정하여 덮어쓰기가 제대로 되도록 합니다
     });
   });
   return comments;
 };
 
-export async function getCommentsForPost(postId: string): Promise<Comment[]> {
+export async function getCommentsForPost(postId: string | null): Promise<Comment[]> {
+  // postId가 null인 경우 빈 배열 반환
+  if (!postId) return [];
+  
   const commentsRef = collection(db, "comments");
   const q = query(
     commentsRef,
@@ -50,8 +56,8 @@ export async function getCommentsForPost(postId: string): Promise<Comment[]> {
   return querySnapshot.docs.map(
     (doc) =>
       ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       }) as Comment,
   );
 }
@@ -69,11 +75,13 @@ export async function createComment(commentData: Omit<Comment, "id">) {
   };
   const docRef = await addDoc(commentsRef, newComment);
 
-  // Update post's comment count
-  const postRef = doc(db, "posts", commentData.postId);
-  await updateDoc(postRef, {
-    comments: increment(1),
-  });
+  // Update post's comment count (postId가 null이 아닐 때만 처리)
+  if (commentData.postId) {
+    const postRef = doc(db, "posts", commentData.postId);
+    await updateDoc(postRef, {
+      comments: increment(1),
+    });
+  }
 
   // Add comment reference to user's comments subcollection
   const userCommentRef = doc(
@@ -82,7 +90,7 @@ export async function createComment(commentData: Omit<Comment, "id">) {
     docRef.id,
   );
   await setDoc(userCommentRef, {
-    postId: commentData.postId,
+    postId: commentData.postId || null,
     commentId: docRef.id,
     createdAt: commentData.createdAt,
     isReply: !!commentData.parentId,
@@ -113,7 +121,7 @@ export async function updateComment(
 
 export async function deleteComment(
   commentId: string,
-  postId: string,
+  postId: string | null,
   authorId: string,
 ) {
   try {
@@ -141,11 +149,13 @@ export async function deleteComment(
       const userCommentRef = doc(db, `users/${authorId}/comments`, commentId);
       await deleteDoc(userCommentRef);
 
-      // 게시글의 댓글 수 감소
-      const postRef = doc(db, "posts", postId);
-      await updateDoc(postRef, {
-        comments: increment(-1),
-      });
+      // 게시글의 댓글 수 감소 (postId가 유효할 때만 처리)
+      if (postId) {
+        const postRef = doc(db, "posts", postId);
+        await updateDoc(postRef, {
+          comments: increment(-1),
+        });
+      }
     }
 
     console.log("Comment deleted or modified successfully");

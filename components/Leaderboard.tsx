@@ -72,7 +72,10 @@ const Leaderboard: React.FC = () => {
     });
 
     setLeaderboard(leaderboardData);
-    setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+    
+    if (querySnapshot.docs.length > 0) {
+      setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] as QueryDocumentSnapshot<DocumentData>);
+    }
 
     const countQuery = query(leaderboardRef);
     const countSnapshot = await getDocs(countQuery);

@@ -9,28 +9,41 @@ import { useMutation } from "react-query";
 import SchoolSearchEdit from "../../components/SchoolSearchEdit";
 import AddressSelector from "../../components/AddressSelector";
 import { errorMessages } from "../../utils/errorMessages";
-import { School } from "../../types";
+import { School, User } from "../../types";
 
 const EditMyInfo: React.FC = () => {
   const [user, setUser] = useRecoilState(userState);
-  const [editedUser, setEditedUser] = useState(user);
+  const [editedUser, setEditedUser] = useState<User | null>(user ? {...user} : null);
   const router = useRouter();
   const [initialSchool, setInitialSchool] = useState<School | undefined>(undefined);
 
   const updateProfileMutation = useMutation(
-    (updatedData: Partial<typeof user>) =>
-      updateUserProfile(user!.uid, updatedData),
+    (updatedData: Partial<User>) => {
+      if (!user) {
+        throw new Error("사용자 정보가 없습니다.");
+      }
+      return updateUserProfile(user.uid, updatedData);
+    },
     {
       onSuccess: async () => {
-        setUser(editedUser);
-        alert("프로필이 성공적으로 업데이트되었습니다.");
-        router.push("/mypage");
+        if (editedUser) {
+          setUser(editedUser);
+          alert("프로필이 성공적으로 업데이트되었습니다.");
+          router.push("/mypage");
+        }
       },
       onError: () => {
         alert(errorMessages.PROFILE_UPDATE_ERROR);
       },
     }
   );
+
+  if (!user || !editedUser) {
+    if (typeof window !== 'undefined') {
+      router.push('/login');
+    }
+    return <Layout><div>로딩 중...</div></Layout>;
+  }
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,26 +52,29 @@ const EditMyInfo: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setEditedUser({ ...editedUser, [name]: value });
+    setEditedUser(prev => prev ? { ...prev, [name]: value } : null);
   };
 
-  const handleSchoolChange = (school: any) => {
-    setEditedUser({
-      ...editedUser,
+  const handleSchoolChange = (school: School) => {
+    setEditedUser(prev => prev ? {
+      ...prev,
       schoolId: school.SCHOOL_CODE,
       schoolName: school.KOR_NAME,
-    });
+    } : null);
   };
 
   const handleAddressChange = (
     field: "address1" | "address2",
     value: string
   ) => {
-    setEditedUser((prev) => ({ ...prev, [field]: value }));
+    setEditedUser((prev) => {
+      if (!prev) return null;
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleBack = () => {
-    router.back(); // 뒤로가기 기능
+    router.back();
   };
 
   return (
@@ -72,7 +88,7 @@ const EditMyInfo: React.FC = () => {
               type="text"
               id="name"
               name="name"
-              value={editedUser?.name || ""}
+              value={editedUser.name || ""}
               onChange={handleInputChange}
               required
             />
@@ -83,7 +99,7 @@ const EditMyInfo: React.FC = () => {
               type="text"
               id="userId"
               name="userId"
-              value={editedUser?.userId || ""}
+              value={editedUser.userId || ""}
               readOnly
             />
           </FormGroup>
@@ -93,7 +109,7 @@ const EditMyInfo: React.FC = () => {
               type="email"
               id="email"
               name="email"
-              value={editedUser?.email || ""}
+              value={editedUser.email || ""}
               readOnly
             />
           </FormGroup>
@@ -103,7 +119,7 @@ const EditMyInfo: React.FC = () => {
               type="tel"
               id="phone"
               name="phoneNumber"
-              value={editedUser?.phoneNumber || ""}
+              value={editedUser.phoneNumber || ""}
               onChange={handleInputChange}
               required
             />
@@ -118,8 +134,8 @@ const EditMyInfo: React.FC = () => {
           <FormGroup>
             <Label htmlFor="address">주소</Label>
             <AddressSelector
-              address1={editedUser?.address1 || ""}
-              address2={editedUser?.address2 || ""}
+              address1={editedUser.address1 || ""}
+              address2={editedUser.address2 || ""}
               onChange={handleAddressChange}
             />
           </FormGroup>
@@ -130,7 +146,7 @@ const EditMyInfo: React.FC = () => {
                   type="text"
                   id="grade"
                   name="grade"
-                  value={editedUser?.grade || ""}
+                  value={editedUser.grade || ""}
                   onChange={handleInputChange}
                   required
                 />
@@ -141,7 +157,7 @@ const EditMyInfo: React.FC = () => {
                   type="text"
                   id="classNumber"
                   name="classNumber"
-                  value={editedUser?.classNumber || ""}
+                  value={editedUser.classNumber || ""}
                   onChange={handleInputChange}
                   required
                 />
@@ -155,7 +171,7 @@ const EditMyInfo: React.FC = () => {
               <BirthInput
                 type="number"
                 name="birthYear"
-                value={editedUser?.birthYear || ""}
+                value={editedUser.birthYear || ""}
                 onChange={handleInputChange}
                 placeholder="년"
                 required
@@ -163,7 +179,7 @@ const EditMyInfo: React.FC = () => {
               <BirthInput
                 type="number"
                 name="birthMonth"
-                value={editedUser?.birthMonth || ""}
+                value={editedUser.birthMonth || ""}
                 onChange={handleInputChange}
                 placeholder="월"
                 required
@@ -171,7 +187,7 @@ const EditMyInfo: React.FC = () => {
               <BirthInput
                 type="number"
                 name="birthDay"
-                value={editedUser?.birthDay || ""}
+                value={editedUser.birthDay || ""}
                 onChange={handleInputChange}
                 placeholder="일"
                 required

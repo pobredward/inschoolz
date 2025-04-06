@@ -166,12 +166,17 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     setReplyContent("");
   };
 
+  const getPostId = (): string => {
+    if (!postId) return '';
+    return Array.isArray(postId) ? postId[0] : String(postId);
+  };
+
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newComment.trim()) return;
 
     const commentData = {
-      postId,
+      postId: getPostId(),
       author: user.userId || "익명",
       authorId: user.uid,
       content: newComment,
@@ -217,7 +222,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       }
 
       // 3. 서버에서 정렬된 전체 댓글 목록 다시 가져오기
-      const updatedComments = await fetchComments(postId);
+      const updatedComments = await fetchComments(getPostId());
       setComments(updatedComments); // 상태 업데이트
     } catch (e) {
       console.error("Error adding comment: ", e);
@@ -228,7 +233,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     if (!user || !replyContent.trim()) return;
 
     const replyData = {
-      postId,
+      postId: getPostId(),
       author: user.userId || "익명",
       authorId: user.uid,
       content: replyContent,
@@ -249,7 +254,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       setReplyingTo(null);
       onCommentUpdate(newComments.length);
 
-      const postRef = doc(db, "posts", postId);
+      const postRef = doc(db, "posts", getPostId());
       await updateDoc(postRef, {
         comments: newComments.length,
       });
@@ -278,7 +283,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       }
 
       // 3. 서버에서 정렬된 전체 댓글 목록 다시 가져오기
-      const updatedComments = await fetchComments(postId);
+      const updatedComments = await fetchComments(getPostId());
       setComments(updatedComments); // 상태 업데이트
     } catch (e) {
       console.error("Error adding reply: ", e);
@@ -358,7 +363,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 
     try {
       if (!user) return;
-      await deleteComment(commentId, postId, user.uid);
+      await deleteComment(commentId, getPostId(), user.uid);
 
       const newComments = comments.filter((c) => c.id !== commentId);
       setComments(newComments);
