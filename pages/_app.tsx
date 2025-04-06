@@ -15,11 +15,10 @@ import { loadingState } from "../store/atoms";
 const queryClient = new QueryClient();
 
 function MyApp({ Component, pageProps }: AppProps) {
-  useAuthStateManager();
-
   return (
     <QueryClientProvider client={queryClient}>
       <RecoilRoot>
+        <AuthStateManager />
         <ThemeProvider theme={theme}>
           <Global styles={globalStyles} />
           <Head>
@@ -96,6 +95,11 @@ function MyApp({ Component, pageProps }: AppProps) {
     </QueryClientProvider>
   );
 }
+
+const AuthStateManager = () => {
+  useAuthStateManager();
+  return null;
+};
 
 const LoadingIndicator = () => {
   const setLoading = useSetRecoilState(loadingState);

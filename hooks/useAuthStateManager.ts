@@ -6,8 +6,12 @@ import { User } from "../types";
 import { doc, getDoc } from "firebase/firestore";
 import { errorMessages } from "../utils/errorMessages";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { useSetRecoilState } from "recoil";
+import { userState } from "../store/atoms";
 
 export const useAuthStateManager = () => {
+  const setUser = useSetRecoilState(userState);
+
   const updateUserState = useCallback(async (firebaseUser: any) => {
     if (firebaseUser) {
       try {
@@ -49,10 +53,23 @@ export const useAuthStateManager = () => {
     }
   }, []);
 
+  const handleAuthStateChanged = useCallback(async (firebaseUser: any) => {
+    const userData = await updateUserState(firebaseUser);
+    if (userData) {
+      setUser(userData);
+    } else {
+      setUser(null);
+    }
+  }, [updateUserState, setUser]);
+
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(updateUserState);
-    return () => unsubscribe();
-  }, [updateUserState]);
+    console.log('Setting up auth state listener');
+    const unsubscribe = auth.onAuthStateChanged(handleAuthStateChanged);
+    return () => {
+      console.log('Cleaning up auth state listener');
+      unsubscribe();
+    };
+  }, [handleAuthStateChanged]);
 
   const login = async (email: string, password: string) => {
     if (!isValidPassword(password)) {
