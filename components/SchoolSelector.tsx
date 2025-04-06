@@ -69,10 +69,15 @@ const SchoolSelector: React.FC = () => {
 
   return (
     <Container>
+      <Label>학교 선택</Label>
       <SelectorButton onClick={toggleDropdown}>
-        <FaSchool />
+        <SchoolIconWrapper>
+          <FaSchool />
+        </SchoolIconWrapper>
         <SchoolName>{getCurrentSchoolName()}</SchoolName>
-        <FaCaretDown />
+        <DropdownIconWrapper>
+          <FaCaretDown />
+        </DropdownIconWrapper>
       </SelectorButton>
       
       {isDropdownOpen && (
@@ -95,9 +100,15 @@ const SchoolSelector: React.FC = () => {
 const Container = styled.div`
   position: relative;
   width: 100%;
-  max-width: 500px;
-  margin: 0 auto;
-  padding: 10px 0;
+  margin: 0;
+  padding: 0;
+`;
+
+const Label = styled.div`
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
 `;
 
 const SelectorButton = styled.button`
@@ -106,24 +117,29 @@ const SelectorButton = styled.button`
   justify-content: space-between;
   width: 100%;
   padding: 10px 15px;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
   border: 1px solid #ddd;
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.2s;
   
   &:hover {
-    background-color: #eaeaea;
+    background-color: #f0f0f0;
   }
-  
-  svg {
-    margin-right: 8px;
-    color: #4a6dff;
-  }
-  
-  &:last-child {
-    margin-left: 8px;
-  }
+`;
+
+const SchoolIconWrapper = styled.span`
+  display: flex;
+  align-items: center;
+  color: #4a6dff;
+  margin-right: 8px;
+`;
+
+const DropdownIconWrapper = styled.span`
+  display: flex;
+  align-items: center;
+  color: #777;
+  margin-left: 8px;
 `;
 
 const SchoolName = styled.span`
@@ -133,6 +149,8 @@ const SchoolName = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 1rem;
+  color: #333;
 `;
 
 const DropdownMenu = styled.div`
@@ -147,6 +165,7 @@ const DropdownMenu = styled.div`
   border-radius: 5px;
   z-index: 10;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 0.3rem;
 `;
 
 const SchoolItem = styled.div<{ isSelected: boolean }>`

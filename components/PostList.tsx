@@ -60,7 +60,7 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
           // 학교 카테고리 필터링
           else if (selectedCategory.startsWith("school") && user) {
             // 학교 선택기를 통해 선택한 학교의 게시물만 필터링
-            if (selectedCategory === "school-student" && selectedSchool !== null) {
+            if ((selectedCategory === "school-student" || selectedCategory === "school-graduate") && selectedSchool !== null) {
               postsData = postsData.filter(
                 (post) => post.schoolId === selectedSchool.id
               );
@@ -194,7 +194,7 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
   }
 
   return (
-    <div>
+    <PostListContainer>
       <PostContainer>
         {currentPosts.map((post) =>
           post.isFired ? (
@@ -292,9 +292,14 @@ const PostList = ({ selectedCategory, isLoggedIn, isNationalCategory }) => {
           </SearchButton>
         </SearchBar>
       </ControlBar>
-    </div>
+    </PostListContainer>
   );
 };
+
+const PostListContainer = styled.div`
+  width: 100%;
+  max-width: 1200px;
+`;
 
 const ControlBar = styled.div`
   display: flex;

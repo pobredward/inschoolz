@@ -6,14 +6,16 @@ import {
   selectedCategoryState,
   userState,
   categoriesState,
+  selectedSchoolState,
 } from "../../store/atoms";
 import { useRouter } from "next/router";
 import styled from "@emotion/styled";
-import { FaPen, FaBars } from "react-icons/fa";
+import { FaPen } from "react-icons/fa";
 import Link from "next/link";
 import { Category } from "../../types";
-import CategoryPanel from "../../components/CategoryPanel";
 import SchoolSelector from "../../components/SchoolSelector";
+import CategoryTabs from "../../components/CategoryTabs";
+import SubcategoryMenu from "../../components/SubcategoryMenu";
 
 const CategoryPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useRecoilState(
@@ -23,7 +25,7 @@ const CategoryPage: React.FC = () => {
   const { category } = router.query;
   const [user, setUser] = useRecoilState(userState);
   const categories = useRecoilValue(categoriesState);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const selectedSchool = useRecoilValue(selectedSchoolState);
   const [activeMajorCategory, setActiveMajorCategory] = useState("national");
   const pageRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,8 +53,6 @@ const CategoryPage: React.FC = () => {
     if (category) {
       setSelectedCategory(category as string);
       setActiveMajorCategory(category.toString().split("-")[0]);
-      // 모바일에서 카테고리 선택 시 메뉴 닫기
-      setIsMobileMenuOpen(false);
     }
   }, [category, setSelectedCategory]);
 
@@ -62,9 +62,8 @@ const CategoryPage: React.FC = () => {
         for (let subcat of cat.subcategories) {
           if (subcat.id === categoryId) {
             if (cat.id === "school") {
-              return user
-                ? `${user.schoolName} > ${subcat.name}`
-                : `학교 > ${subcat.name}`;
+              const schoolName = selectedSchool ? selectedSchool.KOR_NAME : (user ? user.schoolName : "학교");
+              return `${schoolName} > ${subcat.name}`;
             } else if (cat.id === "regional") {
               return user
                 ? `${user.address1} ${user.address2} > ${subcat.name}`
@@ -86,38 +85,46 @@ const CategoryPage: React.FC = () => {
     return "";
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const handleClickOutside = (event: MouseEvent) => {
-    if (pageRef.current && !pageRef.current.contains(event.target as Node)) {
-      setIsMobileMenuOpen(false);
+  const handleMajorCategorySelect = (categoryId: string) => {
+    setActiveMajorCategory(categoryId);
+    
+    // 해당 메이저 카테고리의 첫 번째 서브카테고리로 이동
+    const firstSubcategory = categories
+      .find((cat) => cat.id === categoryId)
+      ?.subcategories?.[0];
+      
+    if (firstSubcategory) {
+      handleCategorySelect(firstSubcategory.id);
     }
   };
 
-  useEffect(() => {
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    router.push(`/community/${categoryId}`);
+  };
 
   const isNationalCategory = selectedCategory.startsWith("national-");
-  const isSchoolStudent = selectedCategory === "school-student";
+  const isSchoolCategory = selectedCategory === "school-student" || selectedCategory === "school-graduate";
 
   return (
     <Layout>
       <PageContainer ref={pageRef}>
-        <MobileHeader>
-          <HamburgerIcon onClick={toggleMobileMenu}>
-            <FaBars />
-          </HamburgerIcon>
-          <MobileTitle>{getCategoryName(selectedCategory)}</MobileTitle>
-        </MobileHeader>
         <ContentWrapper>
-          <CategoryPanel isOpen={isMobileMenuOpen} />
-          <MainContent isMobileMenuOpen={isMobileMenuOpen}>
+          {/* 데스크탑 및 모바일 공통 카테고리 탭 */}
+          <CategoryTabs
+            activeMajorCategory={activeMajorCategory}
+            onSelectMajorCategory={handleMajorCategorySelect}
+          />
+          
+          {/* 데스크탑 및 모바일 공통 서브카테고리 메뉴 */}
+          <SubcategoryMenu
+            activeMajorCategory={activeMajorCategory}
+            selectedCategory={selectedCategory}
+            onSelectCategory={handleCategorySelect}
+            isOpen={true}
+          />
+          
+          <MainContent>
             {user || isNationalCategory ? (
               <>
                 <CategoryHeader>
@@ -137,7 +144,11 @@ const CategoryPage: React.FC = () => {
                   )}
                 </CategoryHeader>
                 
-                {isSchoolStudent && <SchoolSelector />}
+                {isSchoolCategory && (
+                  <SchoolSelectorWrapper>
+                    <SchoolSelector />
+                  </SchoolSelectorWrapper>
+                )}
                 
                 <PostList
                   selectedCategory={selectedCategory}
@@ -165,47 +176,20 @@ const PageContainer = styled.div`
 
 const ContentWrapper = styled.div`
   display: flex;
+  flex-direction: column;
 `;
 
-const MainContent = styled.div<{ isMobileMenuOpen: boolean }>`
+const MainContent = styled.div`
   flex: 1;
   padding: 1rem;
   min-width: 0;
-  transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
   @media (max-width: 768px) {
-    padding: 0rem;
-    transform: ${({ isMobileMenuOpen }) =>
-      isMobileMenuOpen ? "translateX(250px)" : "translateX(0)"};
+    padding: 0.7rem 0.5rem;
   }
-`;
-
-const MobileHeader = styled.div`
-  display: none;
-  @media (max-width: 768px) {
-    display: flex;
-    align-items: center;
-    padding: 0 1rem;
-    background-color: white;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    z-index: 1001; // CategoryPanel보다 위에 오도록 z-index 증가
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); // 선택적: 그림자 효과 추가
-  }
-`;
-
-const HamburgerIcon = styled.div`
-  font-size: 1.5rem;
-  cursor: pointer;
-  margin-right: 1rem;
-`;
-
-const MobileTitle = styled.h2`
-  margin: 0;
-  font-size: 1.1rem;
 `;
 
 const CategoryHeader = styled.div`
@@ -213,6 +197,18 @@ const CategoryHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  width: 100%;
+  max-width: 1200px;
+`;
+
+const SchoolSelectorWrapper = styled.div`
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 1.5rem;
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 const CategoryTitle = styled.h2`

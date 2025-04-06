@@ -39,7 +39,7 @@ const Main = styled.main`
   flex: 1;
   width: 100%;
   max-width: 1200px;
-  margin: 20px auto;
+  margin: 10px auto;
   padding: 1rem;
   box-sizing: border-box;
   padding-top: 60px; // Navbar의 높이 + 여유 공간
