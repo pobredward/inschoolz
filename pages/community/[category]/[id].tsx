@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
+import { useParams } from "next/navigation";
 import { useRecoilValue, useRecoilState } from "recoil";
 import {
   userState,
@@ -22,7 +23,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
-import { FaUserCircle } from "react-icons/fa";
+import { FaUserCircle, FaArrowLeft } from "react-icons/fa";
 import { updatePost } from "../../../services/postService";
 import { Post } from "../../../types";
 import { FaTrash, FaUpload, FaBars } from "react-icons/fa";
@@ -575,51 +576,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
     return Array.isArray(id) ? id[0] : String(id);
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <Container>
-          <CategorySection>
-            <CategoryList />
-          </CategorySection>
-
-          {/* <LoadingMessage>로딩 중...</LoadingMessage> */}
-        </Container>
-      </Layout>
-    );
-  }
-
-  if (!post) {
-    return (
-      <Layout>
-        <ErrorMessage>게시글을 찾을 수 없습니다.</ErrorMessage>
-      </Layout>
-    );
-  }
-
-  const handleDelete = async () => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
-
-    try {
-      if (!user || !post) return;
-      await deletePost(post.id, user.uid);
-      router.push(`/community/${selectedCategory}`);
-    } catch (e) {
-      console.error("Error deleting post: ", e);
-      alert("게시글 삭제 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-    setEditedTitle(post?.title || "");
-    setEditedContent(post?.content || "");
-    setEditedImages([]);
-    setPreviewImages(post?.imageUrls || []);
-    setExistingImages(post?.imageUrls || []);
-  };
-
-  const handleBackToList = () => {
+  const handleBack = () => {
     router.back();
   };
 
@@ -664,6 +621,50 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
     } catch (error) {
       console.error("Error updating likes: ", error);
     }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <Container>
+          <CategorySection>
+            <CategoryList />
+          </CategorySection>
+
+          {/* <LoadingMessage>로딩 중...</LoadingMessage> */}
+        </Container>
+      </Layout>
+    );
+  }
+
+  if (!post) {
+    return (
+      <Layout>
+        <ErrorMessage>게시글을 찾을 수 없습니다.</ErrorMessage>
+      </Layout>
+    );
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+
+    try {
+      if (!user || !post) return;
+      await deletePost(post.id, user.uid);
+      router.push(`/community/${selectedCategory}`);
+    } catch (e) {
+      console.error("Error deleting post: ", e);
+      alert("게시글 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedTitle(post?.title || "");
+    setEditedContent(post?.content || "");
+    setEditedImages([]);
+    setPreviewImages(post?.imageUrls || []);
+    setExistingImages(post?.imageUrls || []);
   };
 
   const formatDate = (date: any) => {
@@ -747,9 +748,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
       </Head>
       <Container>
         <MobileHeader>
-          <HamburgerIcon onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            <FaBars />
-          </HamburgerIcon>
+          <BackIcon onClick={handleBack} />
           <MobileTitle>{getCategoryName(post.categoryId)}</MobileTitle>
         </MobileHeader>
         <ContentWrapper>
@@ -925,7 +924,7 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
                       </ActionItem>
                     </PostActions>
                     <ButtonContainer>
-                      <TextButton onClick={handleBackToList}>목록</TextButton>
+                      <TextButton onClick={handleBack}>목록</TextButton>
                       {user?.uid === post.authorId && (
                         <>
                           <EditButton onClick={handleEdit}>수정</EditButton>
@@ -980,6 +979,10 @@ const PostPage: React.FC<PostPageProps> = ({ initialPost }) => {
 const Container = styled.div`
   position: relative;
   overflow-x: hidden;
+
+  @media (max-width: 768px) {
+    margin-top: 20px;
+  }
 `;
 
 const ContentWrapper = styled.div`
@@ -1016,14 +1019,24 @@ const MobileHeader = styled.div`
   }
 `;
 
-const HamburgerIcon = styled.div`
-  font-size: 1.5rem;
+const BackIcon = styled(FaArrowLeft)`
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  font-size: 24px;
   cursor: pointer;
-  margin-right: 1rem;
+  color: #333;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    transform: scale(1.1);
+    color: #666;
+  }
 `;
 
 const MobileTitle = styled.h2`
   margin: 0;
+  margin-left: 50px;
   font-size: 1.1rem;
 `;
 
@@ -1085,7 +1098,6 @@ const ProfileImageStyled = styled.img`
 const DefaultProfileIcon = styled(FaUserCircle)`
   width: 40px;
   height: 40px;
-  margin-right: 0.5rem;
   color: #ccc;
 `;
 
