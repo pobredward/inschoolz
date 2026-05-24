@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.onmindlab.inschoolz",
+      "sha256_cert_fingerprints": [
+        "C2:58:1C:3E:0B:95:23:EF:4E:8D:41:2E:1B:02:F5:E0:2B:74:39:13:56:2B:6F:0B:A1:22:03:0F:E7:97:64:17"
+      ]
+    }
+  }
+]

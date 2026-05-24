@@ -1,0 +1,43 @@
+User-agent: *
+
+# 허용할 페이지들 (공개 커뮤니티 게시글)
+Allow: /
+Allow: /community/national/
+Allow: /community/region/
+Allow: /community/school/
+Allow: /about
+Allow: /terms
+Allow: /privacy
+Allow: /youth-protection
+Allow: /help
+Allow: /support
+Allow: /manifest.json
+Allow: /favicon.ico
+Allow: /*.png
+Allow: /*.svg
+Allow: /*.xml
+
+# 차단할 페이지들 (개인정보, 관리자, 글쓰기 등)
+Disallow: /auth
+Disallow: /login
+Disallow: /signup
+Disallow: /admin/
+Disallow: /my/
+Disallow: /*/edit
+Disallow: /*/write
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /games/
+Disallow: /ranking/
+Disallow: /notifications
+Disallow: /verify-school
+Disallow: /favorite-schools
+Disallow: /*?*redirect=*
+
+# Sitemap 위치 (메인 + 인덱스 + 게시글 전용)
+Sitemap: https://www.inschoolz.com/sitemap.xml
+Sitemap: https://www.inschoolz.com/sitemap-index.xml
+Sitemap: https://www.inschoolz.com/sitemap-posts.xml
+
+# 크롤링 지연 설정 (초)
+Crawl-delay: 1 

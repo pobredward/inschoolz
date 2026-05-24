@@ -1,0 +1,13 @@
+# app-ads.txt 파일 - AdMob(모바일 앱) 및 AdSense(웹사이트) 통합 설정
+# 실제 운영 시에는 각각의 실제 Publisher ID로 교체 필요
+
+# Google AdMob (모바일 앱용)
+google.com, pub-5100840159526765, DIRECT, f08c47fec0942fa0
+
+# Google AdSense (웹사이트용) - 동일한 Publisher ID 사용 가능
+google.com, pub-5100840159526765, DIRECT, f08c47fec0942fa0
+
+# 추가 광고 네트워크가 있을 경우 여기에 추가
+# 예시:
+# facebook.com, 1234567890, RESELLER, c3e20eee3f780d68
+# unity.com, 1234567, DIRECT, 96cabb5fbdde37a7
