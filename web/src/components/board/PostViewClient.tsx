@@ -297,6 +297,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
           redirectPath = `/community`;
       }
       
+      sessionStorage.setItem('from-delete', 'true');
       router.push(redirectPath);
     } catch (error) {
       console.error('게시글 삭제 실패:', error);

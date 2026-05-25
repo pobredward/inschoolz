@@ -491,12 +491,14 @@ export default function CommunityPageClient({ initialData }: CommunityPageClient
     setIsLoading(isPostsFetching);
   }, [isPostsFetching]);
 
-  // 글쓰기 후 돌아왔을 때 즉시 목록 갱신 (초기 로딩 완료 후 실행)
+  // 글쓰기/삭제 후 돌아왔을 때 즉시 목록 갱신 (초기 로딩 완료 후 실행)
   useEffect(() => {
     if (isInitialLoading) return;
     const fromWrite = sessionStorage.getItem('from-write');
-    if (fromWrite) {
+    const fromDelete = sessionStorage.getItem('from-delete');
+    if (fromWrite || fromDelete) {
       sessionStorage.removeItem('from-write');
+      sessionStorage.removeItem('from-delete');
       refetchPosts();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -506,8 +508,10 @@ export default function CommunityPageClient({ initialData }: CommunityPageClient
   useEffect(() => {
     const handleWindowFocus = () => {
       const fromWrite = sessionStorage.getItem('from-write');
-      if (fromWrite) {
+      const fromDelete = sessionStorage.getItem('from-delete');
+      if (fromWrite || fromDelete) {
         sessionStorage.removeItem('from-write');
+        sessionStorage.removeItem('from-delete');
         refetchPosts();
         return;
       }
