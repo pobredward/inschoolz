@@ -491,9 +491,26 @@ export default function CommunityPageClient({ initialData }: CommunityPageClient
     setIsLoading(isPostsFetching);
   }, [isPostsFetching]);
 
+  // 글쓰기 후 돌아왔을 때 즉시 목록 갱신 (초기 로딩 완료 후 실행)
+  useEffect(() => {
+    if (isInitialLoading) return;
+    const fromWrite = sessionStorage.getItem('from-write');
+    if (fromWrite) {
+      sessionStorage.removeItem('from-write');
+      refetchPosts();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialLoading]);
+
   // 브라우저 탭이 포커스될 때 게시글 목록 새로고침 (5분 쿨다운 + 뒤로가기는 제외)
   useEffect(() => {
     const handleWindowFocus = () => {
+      const fromWrite = sessionStorage.getItem('from-write');
+      if (fromWrite) {
+        sessionStorage.removeItem('from-write');
+        refetchPosts();
+        return;
+      }
       const fromPostDetail = sessionStorage.getItem('from-post-detail');
       if (fromPostDetail) {
         sessionStorage.removeItem('from-post-detail');

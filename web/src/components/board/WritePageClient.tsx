@@ -436,6 +436,7 @@ export default function WritePageClient({ type, code, schoolId, regions }: Write
           }
           
           if (communityUrl) {
+            sessionStorage.setItem('from-write', 'true');
             router.replace(communityUrl);
           }
         }
@@ -466,6 +467,7 @@ export default function WritePageClient({ type, code, schoolId, regions }: Write
         }
         
         if (communityUrl) {
+          sessionStorage.setItem('from-write', 'true');
           router.push(communityUrl);
         }
       }
@@ -552,6 +554,7 @@ export default function WritePageClient({ type, code, schoolId, regions }: Write
       }
       
       if (communityUrl) {
+        sessionStorage.setItem('from-write', 'true');
         router.replace(communityUrl);
       }
       setPendingPostId(null);
