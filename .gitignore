@@ -1,0 +1,16 @@
+# 환경 변수
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# node_modules는 각 폴더의 .gitignore에서 처리
