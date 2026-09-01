@@ -1,6 +1,6 @@
 # Inschoolz Web Application
 
-Inschoolz의 Next.js 웹 애플리케이션입니다.
+Inschoolz의 Next.js 웹 애플리케이션입니다. (monorepo)
 
 ## 🚀 기술 스택
 
