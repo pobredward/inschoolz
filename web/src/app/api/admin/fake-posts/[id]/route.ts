@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import * as admin from 'firebase-admin';
@@ -34,10 +35,12 @@ async function getFirebaseAdmin() {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { title, content, tags, isAnonymous } = body;
 
@@ -162,12 +165,14 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   console.log('🗑️ [POST-DELETE] DELETE 요청 시작');
   
   try {
-    const { id } = params;
+    const { id } = await params;
     
     console.log('📋 [POST-DELETE] 게시글 ID:', id);
     

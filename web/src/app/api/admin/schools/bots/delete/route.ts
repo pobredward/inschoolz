@@ -1,7 +1,10 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { botIds, schoolId } = body;

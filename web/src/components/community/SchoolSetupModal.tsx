@@ -1,4 +1,5 @@
 'use client';
+import { communityCommand } from '@/lib/community-client';
 
 import { useState, useEffect } from 'react';
 import {
@@ -115,13 +116,7 @@ export function SchoolSetupModal({ isOpen, onClose, onComplete }: SchoolSetupMod
       
       // 사용자의 즐겨찾기 학교에 추가
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        'favorites.schools': arrayUnion(school.id),
-        // 메인 학교로도 설정 (첫 번째 학교)
-        'school.id': school.id,
-        'school.name': school.name,
-        updatedAt: new Date()
-      });
+      await communityCommand('school.set', { schoolId: school.id }, user.uid);
       
       await refreshUser();
       

@@ -1,3 +1,4 @@
+import { communityCommand } from '../lib/community-client';
 import React, { useState } from 'react';
 import {
   View,
@@ -91,14 +92,7 @@ export default function SchoolSetupModal({ visible, onClose, onComplete }: Schoo
 
       // Firestore 업데이트
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        'school.id': school.id,
-        'school.name': school.name,
-        'school.address': school.address,
-        'school.schoolType': school.schoolType,
-        searchTokens: newSearchTokens,
-        updatedAt: new Date()
-      });
+      await communityCommand('school.set', { schoolId: school.id }, user.uid);
 
       // 로컬 상태 업데이트
       setUser({

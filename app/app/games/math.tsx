@@ -90,7 +90,7 @@ export default function MathGameScreen() {
   const loadRankings = async () => {
     try {
       const usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('gameStats.mathGame.bestReactionTime', '>', 0),
         orderBy('gameStats.mathGame.bestReactionTime', 'desc'),
         limit(10)

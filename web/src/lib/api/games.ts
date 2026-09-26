@@ -1,3 +1,4 @@
+import { communityCommand } from '../community-client';
 import { doc, getDoc, updateDoc, increment, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
@@ -118,133 +119,12 @@ const calculateGameXP = async (gameType: GameType, value: number): Promise<numbe
 
 // 게임 시작 시 플레이 횟수 차감
 export const startGamePlay = async (userId: string, gameType: GameType): Promise<GameResult> => {
-  try {
-    // 캐시 무효화하여 최신 Firebase 설정 가져오기
-    const { invalidateSystemSettingsCache, checkDailyLimit } = await import('../experience');
-    invalidateSystemSettingsCache();
-    
-    // 플레이 전 일일 제한 확인
-    const limitCheck = await checkDailyLimit(userId, 'games', gameType);
-    if (!limitCheck.canEarnExp) {
-      return {
-        success: false,
-        message: `오늘의 ${gameType} 플레이 횟수를 모두 사용했습니다. (${limitCheck.currentCount}/${limitCheck.limit})`
-      };
-    }
-    
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      return {
-        success: false,
-        message: '사용자를 찾을 수 없습니다.'
-      };
-    }
-    
-    // 일일 플레이 카운트 증가 (게임 시작 시)
-    const updateData: Record<string, FieldValue> = {
-      [`activityLimits.dailyCounts.games.${gameType}`]: increment(1)
-    };
-    
-    await updateDoc(userRef, updateData);
-    
-    return {
-      success: true,
-      message: '게임을 시작합니다.'
-    };
-    
-  } catch (error) {
-    console.error('게임 시작 실패:', error);
-    return {
-      success: false,
-      message: '게임 시작 중 오류가 발생했습니다.'
-    };
-  }
+  return communityCommand('game.start', { gameType }, userId);
 };
 
 // 게임 점수 업데이트 및 경험치 지급 (횟수 차감은 startGamePlay에서 이미 처리됨)
 export const updateGameScore = async (userId: string, gameType: GameType, score: number, reactionTime?: number): Promise<GameResult> => {
-  try {
-    // 캐시 무효화하여 최신 Firebase 설정 가져오기
-    const { invalidateSystemSettingsCache } = await import('../experience');
-    invalidateSystemSettingsCache();
-    
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      return {
-        success: false,
-        message: '사용자를 찾을 수 없습니다.'
-      };
-    }
-
-    const userData = userDoc.data() as User;
-    
-    // 최고 기록 확인
-    // - 반응속도 게임: bestReactionTime (낮을수록 좋음)
-    // - 타일 게임: bestMoves (낮을수록 좋음)
-    // - 계산/타이핑 게임: bestReactionTime (높을수록 좋음, 점수)
-    const currentBestReactionTime = userData.gameStats?.[gameType]?.bestReactionTime || null;
-    const currentBestMoves = userData.gameStats?.tileGame?.bestMoves || null;
-    
-    const isBestReactionTime = gameType === 'reactionGame' && reactionTime && 
-      (currentBestReactionTime === null || reactionTime < currentBestReactionTime);
-    const isBestMoves = gameType === 'tileGame' && score && 
-      (currentBestMoves === null || score < currentBestMoves);
-    const isHighScore = (gameType === 'mathGame' || gameType === 'typingGame') && score && 
-      (currentBestReactionTime === null || score > currentBestReactionTime);
-    
-    // 게임 통계 업데이트
-    const updateData: Record<string, number | string | FieldValue> = {};
-    
-    // 각 게임 타입에 맞는 필드 업데이트
-    if (isBestReactionTime && reactionTime) {
-      // 반응속도 게임: bestReactionTime
-      updateData[`gameStats.${gameType}.bestReactionTime`] = reactionTime;
-    } else if (isBestMoves && score) {
-      // 타일 게임: bestMoves (움직임 횟수)
-      updateData[`gameStats.tileGame.bestMoves`] = score;
-    } else if (isHighScore && score) {
-      // 계산/타이핑 게임: bestReactionTime에 점수 저장
-      updateData[`gameStats.${gameType}.bestReactionTime`] = score;
-    }
-    
-    // Firestore 업데이트 (일일 플레이 카운트는 startGamePlay에서 이미 증가시킴)
-    if (Object.keys(updateData).length > 0) {
-      await updateDoc(userRef, updateData);
-    }
-    
-    // 경험치 계산 및 지급 (반응시간 또는 움직임 횟수 기반)
-    const xpEarned = await calculateGameXP(gameType, reactionTime || score || 1000);
-    
-    let result: { leveledUp: boolean; oldLevel?: number; newLevel?: number } = { 
-      leveledUp: false, 
-      oldLevel: undefined, 
-      newLevel: undefined 
-    };
-    
-    if (xpEarned > 0) {
-      result = await updateUserExperience(userId, xpEarned);
-    }
-    
-    return {
-      success: true,
-      leveledUp: result.leveledUp,
-      oldLevel: result.oldLevel,
-      newLevel: result.newLevel,
-      xpEarned,
-      message: '게임 점수가 성공적으로 저장되었습니다.'
-    };
-    
-  } catch (error) {
-    console.error('게임 점수 업데이트 실패:', error);
-    return {
-      success: false,
-      message: '점수 저장 중 오류가 발생했습니다.'
-    };
-  }
+  return communityCommand('game.finish', { gameType, score, reactionTime }, userId);
 };
 
 // 사용자 게임 통계 조회
@@ -286,7 +166,7 @@ export const getUserGameStats = async (userId: string): Promise<GameStatsRespons
     const bestReactionTimes = {
       flappyBird: userData.gameStats?.flappyBird?.bestReactionTime || null,
       reactionGame: userData.gameStats?.reactionGame?.bestReactionTime || null,
-      tileGame: userData.gameStats?.tileGame?.bestReactionTime || null,
+      tileGame: userData.gameStats?.tileGame?.bestMoves || null,
       mathGame: userData.gameStats?.mathGame?.bestReactionTime || null,
       typingGame: userData.gameStats?.typingGame?.bestReactionTime || null,
     };

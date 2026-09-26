@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 // 메모리 캐시 (프로덕션에서는 Redis 사용 권장)
@@ -297,6 +298,8 @@ async function getBotAccountsOptimized(limit: number = 50, schoolType?: string, 
  * 봇 계정 목록 조회 (최적화된 버전)
  */
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -378,6 +381,8 @@ export async function GET(request: NextRequest) {
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function PATCH(_request: NextRequest) {
+  const denied = await guardAdmin(_request);
+  if (denied) return denied;
   try {
     const app = await getFirebaseAdmin();
     const db = app.firestore();

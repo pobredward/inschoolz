@@ -1,5 +1,5 @@
 import { getDownloadURL, ref, uploadBytes, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
+import { storage, auth } from './firebase';
 
 /**
  * 파일 업로드 함수
@@ -9,7 +9,8 @@ import { storage } from './firebase';
  */
 export const uploadFile = async (file: File, path: string): Promise<string> => {
   try {
-    const storageRef = ref(storage, path);
+    if (!auth.currentUser) throw new Error('로그인이 필요합니다.');
+    const storageRef = ref(storage, `uploads/${auth.currentUser.uid}/${path}`);
     const snapshot = await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;

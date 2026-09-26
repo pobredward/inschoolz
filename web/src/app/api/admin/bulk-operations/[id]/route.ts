@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface BulkOperation {
@@ -25,10 +26,12 @@ const operations = globalThis.bulkOperations ?? new Map<string, BulkOperation>()
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
-    const operationId = params.id;
+    const operationId = (await params).id;
     
     if (!operationId) {
       return NextResponse.json(
@@ -69,10 +72,12 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
-    const operationId = params.id;
+    const operationId = (await params).id;
     
     if (!operationId) {
       return NextResponse.json(

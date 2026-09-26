@@ -1,3 +1,4 @@
+import { communityCommand } from './community-client';
 import { doc, getDoc, updateDoc, serverTimestamp, increment, collection, query, where, orderBy, limit, getDocs, FieldValue } from 'firebase/firestore';
 import { db } from './firebase';
 import { User, SystemSettings } from '@/types';
@@ -442,21 +443,8 @@ export const checkDailyLimit = async (userId: string, activityType: 'posts' | 'c
  * 일일 제한 데이터 리셋
  */
 export const resetDailyLimits = async (userId: string, today: string): Promise<void> => {
-  try {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      'activityLimits.lastResetDate': today,
-      'activityLimits.dailyCounts.posts': 0,
-      'activityLimits.dailyCounts.comments': 0,
-      'activityLimits.dailyCounts.games.flappyBird': 0,
-      'activityLimits.dailyCounts.games.reactionGame': 0,
-      'activityLimits.dailyCounts.games.tileGame': 0,
-      'activityLimits.dailyCounts.games.mathGame': 0,
-      'activityLimits.dailyCounts.games.typingGame': 0,
-    });
-  } catch (error) {
-    console.error('일일 제한 리셋 오류:', error);
-  }
+  // Daily accounting and XP are maintained atomically by the server.
+  return;
 };
 
 
@@ -505,91 +493,7 @@ export const awardExperience = async (
   newLevel?: number;
   reason?: string;
 }> => {
-  try {
-    const settings = await getSystemSettings();
-    let expToAward = 0;
-    let shouldCheckLimit = true;
-    let activityLimitType: 'posts' | 'comments' | 'games' | null = null;
-    
-    // 활동 타입별 경험치 계산
-    switch (activityType) {
-      case 'post':
-        expToAward = settings.experience.postReward;
-        activityLimitType = 'posts';
-        break;
-      case 'comment':
-        expToAward = settings.experience.commentReward;
-        activityLimitType = 'comments';
-        break;
-      case 'like':
-        expToAward = settings.experience.likeReward;
-        shouldCheckLimit = false; // 좋아요는 제한 없음
-        break;
-      case 'attendance':
-        expToAward = settings.experience.attendanceReward;
-        shouldCheckLimit = false;
-        break;
-      case 'attendanceStreak':
-        expToAward = settings.experience.attendanceStreakReward;
-        shouldCheckLimit = false;
-        break;
-      case 'referral':
-        expToAward = settings.experience.referralReward;
-        shouldCheckLimit = false;
-        break;
-      case 'game':
-        if (!gameType) return { success: false, expAwarded: 0, leveledUp: false, reason: '게임 타입이 필요합니다.' };
-        
-        const gameSettings = settings.gameSettings[gameType];
-        if (gameScore && gameScore >= gameSettings.rewardThreshold) {
-          expToAward = gameSettings.rewardAmount;
-          activityLimitType = 'games';
-        } else {
-          return { success: false, expAwarded: 0, leveledUp: false, reason: '기준 점수에 도달하지 못했습니다.' };
-        }
-        break;
-      default:
-        expToAward = amount || 0;
-        shouldCheckLimit = false;
-    }
-    
-    // 일일 제한 확인
-    if (shouldCheckLimit && activityLimitType) {
-      const limitCheck = await checkDailyLimit(userId, activityLimitType);
-      if (!limitCheck.canEarnExp) {
-        return { 
-          success: false, 
-          expAwarded: 0, 
-          leveledUp: false, 
-          reason: `일일 제한에 도달했습니다. (${limitCheck.currentCount}/${limitCheck.limit})` 
-        };
-      }
-    }
-    
-    // 경험치 업데이트
-    const result = await updateUserExperience(userId, expToAward);
-    
-    // 활동 카운트 업데이트
-    if (activityLimitType === 'posts') {
-      await updateActivityCount(userId, 'posts');
-    } else if (activityLimitType === 'comments') {
-      await updateActivityCount(userId, 'comments');
-    } else if (activityType === 'game' && gameType) {
-      await updateActivityCount(userId, 'posts', gameType); // 게임의 경우 임시로 posts 타입 사용하고 gameType 전달
-    }
-    
-    return {
-      success: true,
-      expAwarded: expToAward,
-      leveledUp: result.leveledUp,
-      oldLevel: result.oldLevel,
-      newLevel: result.newLevel
-    };
-    
-  } catch (error) {
-    console.error('경험치 지급 실패:', error);
-    return { success: false, expAwarded: 0, leveledUp: false, reason: '경험치 지급 중 오류가 발생했습니다.' };
-  }
+  return communityCommand('reward.claim', { activityType }, userId);
 };
 
 /**
@@ -664,35 +568,8 @@ export const updateUserExperience = async (
  * 사용자 경험치 데이터 동기화 (기존 데이터 마이그레이션용)
  */
 export const syncUserExperienceData = async (userId: string): Promise<void> => {
-  try {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error('사용자를 찾을 수 없습니다.');
-    }
-    
-    const userData = userDoc.data() as User;
-    
-    // totalExperience를 기준으로 정확한 레벨과 현재 경험치 계산
-    const totalExp = userData.stats?.totalExperience || (userData.stats as any)?.experience || 0;
-    const progress = calculateCurrentLevelProgress(totalExp);
-    
-    // 데이터 동기화
-    await updateDoc(userRef, {
-      'stats.totalExperience': totalExp,
-      // 'stats.experience': totalExp, // experience 필드 제거
-      'stats.level': progress.level,
-      'stats.currentExp': progress.currentExp,
-      'stats.currentLevelRequiredXp': progress.currentLevelRequiredXp,
-      'updatedAt': serverTimestamp()
-    });
-    
-    console.log(`✅ 사용자 ${userId}의 경험치 데이터가 동기화되었습니다.`);
-    console.log(`- 총 경험치: ${totalExp}, 레벨: ${progress.level}, 현재 경험치: ${progress.currentExp}/${progress.currentLevelRequiredXp}`);
-  } catch (error) {
-    console.error('경험치 데이터 동기화 오류:', error);
-  }
+  // Daily accounting and XP are maintained atomically by the server.
+  return;
 };
 
 /**
@@ -718,7 +595,7 @@ export const getRankingData = async (
     
     if (type === 'school' && schoolId) {
       usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('school.id', '==', schoolId),
         orderBy('stats.totalExperience', 'desc'),
         limit(limitCount)
@@ -726,7 +603,7 @@ export const getRankingData = async (
     } else if (type === 'region' && sido) {
       if (sigungu) {
         usersQuery = query(
-          collection(db, 'users'),
+          collection(db, 'publicProfiles'),
           where('regions.sido', '==', sido),
           where('regions.sigungu', '==', sigungu),
           orderBy('stats.totalExperience', 'desc'),
@@ -734,7 +611,7 @@ export const getRankingData = async (
         );
       } else {
         usersQuery = query(
-          collection(db, 'users'),
+          collection(db, 'publicProfiles'),
           where('regions.sido', '==', sido),
           orderBy('stats.totalExperience', 'desc'),
           limit(limitCount)
@@ -743,7 +620,7 @@ export const getRankingData = async (
     } else {
       // 전체 랭킹
       usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         orderBy('stats.totalExperience', 'desc'),
         limit(limitCount)
       );
@@ -791,7 +668,7 @@ export const getUserRank = async (
   sigungu?: string
 ): Promise<number | null> => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
+    const userDoc = await getDoc(doc(db, 'publicProfiles', userId));
     if (!userDoc.exists()) return null;
     
     const userData = userDoc.data() as User;
@@ -801,21 +678,21 @@ export const getUserRank = async (
     
     if (type === 'school' && schoolId) {
       usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('school.id', '==', schoolId),
         where('stats.totalExperience', '>', userExp)
       );
     } else if (type === 'region' && sido) {
       if (sigungu) {
         usersQuery = query(
-          collection(db, 'users'),
+          collection(db, 'publicProfiles'),
           where('regions.sido', '==', sido),
           where('regions.sigungu', '==', sigungu),
           where('stats.totalExperience', '>', userExp)
         );
       } else {
         usersQuery = query(
-          collection(db, 'users'),
+          collection(db, 'publicProfiles'),
           where('regions.sido', '==', sido),
           where('stats.totalExperience', '>', userExp)
         );
@@ -823,7 +700,7 @@ export const getUserRank = async (
     } else {
       // 전체 랭킹
       usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('stats.totalExperience', '>', userExp)
       );
     }
@@ -842,42 +719,8 @@ export const getUserRank = async (
  * 00시 정각 이후 첫 접속 시 activityLimits를 모두 0으로 초기화
  */
 export const resetDailyActivityLimits = async (userId: string): Promise<void> => {
-  try {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      console.warn('사용자 문서를 찾을 수 없습니다:', userId);
-      return;
-    }
-    
-    const userData = userDoc.data() as User;
-    const today = getKoreanDateString(); // 한국 시간 기준 날짜 사용
-    
-    // 활동 제한 데이터 확인
-    const activityLimits = userData.activityLimits;
-    
-    // 새로운 날이거나 데이터가 없으면 리셋
-    if (!activityLimits || activityLimits.lastResetDate !== today) {
-      console.log('일일 활동 제한 리셋 실행:', { userId, today, lastResetDate: activityLimits?.lastResetDate });
-      
-      const resetData = {
-        'activityLimits.lastResetDate': today,
-        'activityLimits.dailyCounts.posts': 0,
-        'activityLimits.dailyCounts.comments': 0,
-        'activityLimits.dailyCounts.games.flappyBird': 0,
-        'activityLimits.dailyCounts.games.reactionGame': 0,
-        'activityLimits.dailyCounts.games.tileGame': 0,
-        'activityLimits.dailyCounts.adViewedCount': 0,
-        // adRewards는 날짜별로 별도 관리되므로 리셋하지 않음
-      };
-      
-      await updateDoc(userRef, resetData);
-      console.log('일일 활동 제한 리셋 완료:', userId);
-    }
-  } catch (error) {
-    console.error('일일 활동 제한 리셋 오류:', error);
-  }
+  // Daily accounting and XP are maintained atomically by the server.
+  return;
 }; 
 
 /**

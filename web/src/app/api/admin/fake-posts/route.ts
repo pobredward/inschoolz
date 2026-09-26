@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Firebase Admin SDK를 직접 임포트하지 않고 동적으로 로드
@@ -32,6 +33,8 @@ async function getFirebaseAdmin() {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     console.log('🔥 Firebase에서 직접 fake: true 게시글 실시간 조회 시작');
 
@@ -169,6 +172,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const postId = searchParams.get('id');

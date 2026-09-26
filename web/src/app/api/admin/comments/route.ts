@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 
@@ -41,6 +42,8 @@ interface Comment {
  * AI 생성 댓글 목록 조회 (관리자 검토용)
  */
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     console.log('💬 AI 댓글 목록 조회 시작');
 
@@ -184,6 +187,8 @@ export async function GET(request: NextRequest) {
  * AI 댓글 생성 시작
  */
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { schoolLimit = 5, commentsPerSchool = 3, maxCommentsPerPost = 2 } = body;
@@ -239,6 +244,8 @@ export async function POST(request: NextRequest) {
  * AI 댓글 삭제 (관리자용)
  */
 export async function DELETE(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const commentId = searchParams.get('id');
@@ -312,6 +319,8 @@ export async function DELETE(request: NextRequest) {
  * AI 댓글 수정 (관리자용)
  */
 export async function PUT(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const commentId = searchParams.get('id');

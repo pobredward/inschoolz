@@ -1,7 +1,10 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import TrendService from '@/lib/services/trend-service';
 
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const forceRefresh = searchParams.get('refresh') === 'true';
@@ -44,6 +47,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { schoolType = 'middle', postType = 'free' } = body;

@@ -1,3 +1,6 @@
+import { connectFirestoreEmulator } from 'firebase/firestore';
+import { connectAuthEmulator } from 'firebase/auth';
+import { connectStorageEmulator } from 'firebase/storage';
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, initializeAuth } from 'firebase/auth';
 import { getFirestore, Timestamp } from 'firebase/firestore';
@@ -69,6 +72,16 @@ try {
 
 const db = getFirestore(app);
 const storage = getStorage(app);
+const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
+const emulatorState = globalThis as typeof globalThis & { __inschoolzEmulators?: boolean };
+if (emulatorHost && !emulatorState.__inschoolzEmulators) {
+  if (!firebaseConfig.projectId?.startsWith('demo-')) throw new Error('Emulators require a demo-* Firebase project.');
+  connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
+  connectFirestoreEmulator(db, emulatorHost, 8080);
+  connectStorageEmulator(storage, emulatorHost, 9199);
+  emulatorState.__inschoolzEmulators = true;
+}
+
 
 // 이미지 업로드 함수
 export const uploadImage = async (imageUri: string): Promise<string> => {
@@ -77,7 +90,8 @@ export const uploadImage = async (imageUri: string): Promise<string> => {
     const blob = await response.blob();
     
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.jpg`;
-    const storageRef = ref(storage, `images/${fileName}`);
+    if (!auth.currentUser) throw new Error('로그인이 필요합니다.');
+    const storageRef = ref(storage, `uploads/${auth.currentUser!.uid}/images/${fileName}`);
     
     await uploadBytes(storageRef, blob);
     const downloadURL = await getDownloadURL(storageRef);

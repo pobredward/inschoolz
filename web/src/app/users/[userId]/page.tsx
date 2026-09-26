@@ -2,10 +2,16 @@ import React from 'react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import UserProfileContainer from './components/UserProfileContainer';
-import { getUserById } from '@/lib/api/users';
+import { adminFirestore } from '@/lib/firebase-admin';
 import { User } from '@/types';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { serializeUserForClient } from '@/lib/utils';
+
+async function getUserById(userId: string): Promise<User | null> {
+  if (!userId || userId.includes('/')) return null;
+  const snapshot = await adminFirestore().doc(`publicProfiles/${userId}`).get();
+  return snapshot.exists ? { ...snapshot.data(), uid: userId } as User : null;
+}
 
 interface UserProfilePageProps {
   params: Promise<{ userId: string }>;
@@ -16,7 +22,7 @@ export async function generateMetadata({ params }: UserProfilePageProps): Promis
   try {
     const { userId } = await params;
     const user = await getUserById(userId);
-    
+
     if (!user) {
       return {
         title: '사용자를 찾을 수 없음 | InSchoolz',
@@ -41,16 +47,16 @@ export async function generateMetadata({ params }: UserProfilePageProps): Promis
 export default async function UserProfilePage({ params }: UserProfilePageProps) {
   try {
     const { userId } = await params;
-    
+
     // userId 유효성 검증
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
       console.error('유효하지 않은 userId:', userId);
       return notFound();
     }
-    
+
     // 사용자 정보 조회
     const user = await getUserById(userId);
-    
+
     if (!user) {
       console.log(`사용자를 찾을 수 없음: ${userId}`);
       return notFound();
@@ -61,10 +67,10 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
       console.error('사용자 프로필 정보가 불완전함:', user.uid);
       return notFound();
     }
-    
+
     // 클라이언트 컴포넌트에 전달하기 위한 안전한 직렬화
     const serializedUser = serializeUserForClient(user);
-    
+
     return (
       <ErrorBoundary>
         <UserProfileContainer user={serializedUser} />
@@ -72,12 +78,12 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     );
   } catch (error) {
     console.error('사용자 프로필 페이지 오류:', error);
-    
+
     // 개발 환경에서는 더 자세한 오류 정보 제공
     if (process.env.NODE_ENV === 'development') {
       throw error;
     }
-    
+
     return notFound();
   }
-} 
+}

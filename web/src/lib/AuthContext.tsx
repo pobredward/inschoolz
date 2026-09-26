@@ -1,4 +1,5 @@
 'use client';
+import { ensureUserProfile } from './community-client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { 
@@ -88,32 +89,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      // 신규 회원 정보 저장
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          profile: {
-            userName: user.displayName || '',
-            email: user.email || '',
-            realName: '',
-            gender: '',
-            birthYear: 0,
-            birthMonth: 0,
-            birthDay: 0,
-            phoneNumber: '',
-            profileImageUrl: user.photoURL || '',
-            createdAt: serverTimestamp(),
-            isAdmin: false
-          },
-          role: 'user',
-          createdAt: new Date(),
-        });
-      }
-      
+      await ensureUserProfile();
+
       router.push('/');
     } catch (error) {
       console.error('구글 로그인 오류:', error);

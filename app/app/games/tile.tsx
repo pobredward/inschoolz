@@ -87,7 +87,7 @@ export default function TileGameScreen() {
   const loadRankings = async () => {
     try {
       const usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('gameStats.tileGame.bestMoves', '>', 0),
         orderBy('gameStats.tileGame.bestMoves', 'asc'),
         limit(10)

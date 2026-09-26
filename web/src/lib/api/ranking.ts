@@ -162,7 +162,7 @@ export async function getRankings(options: RankingQueryOptions): Promise<Ranking
 
     constraints.push(limit(queryLimit));
 
-    const q = query(collection(db, 'users'), ...constraints);
+    const q = query(collection(db, 'publicProfiles'), ...constraints);
     const querySnapshot = await getDocs(q);
 
     const usersData = querySnapshot.docs.map(doc => {
@@ -274,7 +274,7 @@ export async function getUserRank(userId: string, options: Omit<RankingQueryOpti
 
     // 사용자 정보 조회
     const userDoc = await getDocs(query(
-      collection(db, 'users'),
+      collection(db, 'publicProfiles'),
       where('__name__', '==', userId)
     ));
 
@@ -287,7 +287,7 @@ export async function getUserRank(userId: string, options: Omit<RankingQueryOpti
 
     // 해당 사용자보다 높은 경험치를 가진 사용자 수 조회
     const higherXpQuery = query(
-      collection(db, 'users'),
+      collection(db, 'publicProfiles'),
       ...constraints,
       where('stats.totalExperience', '>', userXp)
     );
@@ -334,7 +334,7 @@ export async function getRankingStats(options: Omit<RankingQueryOptions, 'limit'
         break;
     }
 
-    const q = query(collection(db, 'users'), ...constraints);
+    const q = query(collection(db, 'publicProfiles'), ...constraints);
     const querySnapshot = await getDocs(q);
 
     const totalUsers = querySnapshot.size;
@@ -415,7 +415,7 @@ export async function getAggregatedRegionalRankings(limit: number = 20, offset: 
   try {
     // Firebase의 '!=' 제한을 피하기 위해 모든 사용자를 가져온 후 클라이언트에서 필터링
     // 필요한 필드만 선택하여 네트워크 사용량 최적화
-    const usersQuery = query(collection(db, 'users'));
+    const usersQuery = query(collection(db, 'publicProfiles'));
     
     const querySnapshot = await getDocs(usersQuery);
     const regionMap = new Map<string, {
@@ -480,7 +480,7 @@ export async function getAggregatedRegionalRankings(limit: number = 20, offset: 
 export async function getAggregatedSchoolRankings(limit: number = 20, offset: number = 0): Promise<AggregatedSchool[]> {
   try {
     // 모든 사용자 데이터를 가져온 후 클라이언트에서 학교 정보가 있는 사용자만 필터링
-    const usersQuery = query(collection(db, 'users'));
+    const usersQuery = query(collection(db, 'publicProfiles'));
     
     const querySnapshot = await getDocs(usersQuery);
     const schoolMap = new Map<string, {

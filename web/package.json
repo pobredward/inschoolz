@@ -9,7 +9,11 @@
     "lint": "next lint",
     "migrate:schema": "npx tsx src/lib/run-migration.ts",
     "migrate:sample": "npx tsx src/lib/run-migration.ts sample",
-    "migrate:check": "npx tsx src/lib/run-migration.ts check"
+    "migrate:check": "npx tsx src/lib/run-migration.ts check",
+    "test:security": "firebase emulators:exec --project demo-inschoolz --only firestore,auth,storage \"FIREBASE_PROJECT_ID=demo-inschoolz tsx --test tests/*.test.ts\"",
+    "recover:plan": "tsx scripts/recover-firestore.ts",
+    "recover:apply": "tsx scripts/recover-firestore.ts --apply",
+    "typecheck:security": "tsc --noEmit -p tsconfig.security.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
@@ -79,6 +83,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@firebase/rules-unit-testing": "^4.0.1",
     "@tailwindcss/postcss": "^4",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
@@ -87,6 +92,7 @@
     "critters": "^0.0.23",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
+    "firebase-tools": "^15.31.0",
     "tailwindcss": "^4",
     "tsx": "^4.7.1",
     "typescript": "^5"

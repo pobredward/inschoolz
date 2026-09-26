@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false, "plugins": [] },
+  "include": ["src/lib/server/**/*.ts", "src/app/api/community/command/route.ts", "scripts/recover-firestore.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules"]
+}

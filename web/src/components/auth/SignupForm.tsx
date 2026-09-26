@@ -108,7 +108,8 @@ export function SignupForm({ showTitle = false }: SignupFormProps) {
         email: validated.email,
         password: validated.password,
         userName: userName,
-        referral: selectedReferralUser?.userName || validated.referral
+        referral: selectedReferralUser?.userName || validated.referral,
+        agreements: { terms: validated.agreeTerms, privacy: validated.agreePrivacy, location: false, marketing: false }
       });
       
       toast.success('회원가입이 완료되었습니다!');

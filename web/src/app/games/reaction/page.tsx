@@ -48,7 +48,7 @@ export default function ReactionGamePage() {
   // 랭킹 데이터 로드 (최저 반응시간 기준)
   const loadRankings = async () => {
     try {
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, 'publicProfiles');
       const rankingQuery = query(
         usersRef,
         where('gameStats.reactionGame.bestReactionTime', '>', 0),

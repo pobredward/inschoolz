@@ -1,4 +1,5 @@
 'use client';
+import { ensureUserProfile } from '@/lib/community-client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { 
@@ -6,7 +7,8 @@ import {
   signOut as firebaseSignOut,
   User as FirebaseUser 
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { getUserById } from '@/lib/api/users';
 import { loginWithEmail, loginWithGoogle, registerWithEmail } from '@/lib/auth';
 import { signUp as signUpAPI } from '@/lib/api/auth';
@@ -139,6 +141,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [suspensionStatus, setSuspensionStatus] = useState<SuspensionStatus | null>(null);
+
+  // Keep the header/profile synchronized with registration completion and server rewards.
+  useEffect(() => {
+    if (!firebaseUser) return;
+    return onSnapshot(doc(db, 'users', firebaseUser.uid), snapshot => {
+      if (snapshot.exists() && auth.currentUser?.uid === firebaseUser.uid) {
+        setUser({ ...snapshot.data(), uid: firebaseUser.uid } as User);
+      }
+    }, error => console.error('사용자 상태 구독 실패:', error));
+  }, [firebaseUser]);
 
   const resetError = () => {
     setError(null);
@@ -273,7 +285,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           throw new Error('비밀번호와 사용자명이 필요합니다.');
         }
         console.log('📝 AuthProvider: 간단한 회원가입 처리 중...');
-        await registerWithEmail(emailOrFormData, password, userName);
+        await registerWithEmail({ email: emailOrFormData, password, userName });
         console.log('✅ AuthProvider: registerWithEmail 완료, Firebase Auth 상태 변화 대기 중...');
       }
       
@@ -332,7 +344,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!firebaseUser) return;
     
     try {
-      const userData = await getUserById(firebaseUser.uid);
+      const userData = await ensureUserProfile();
       if (userData) {
         await setUserAndCookies(userData, firebaseUser);
       }
@@ -368,7 +380,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const maxRetries = 3;
           
           while (!userData && retryCount < maxRetries) {
-            userData = await getUserById(firebaseUser.uid);
+            userData = await ensureUserProfile();
             
             if (!userData && retryCount < maxRetries - 1) {
               console.log(`⏳ AuthProvider: 사용자 정보 조회 실패, 재시도 중... (${retryCount + 1}/${maxRetries})`);

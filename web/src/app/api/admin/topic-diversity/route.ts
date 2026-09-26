@@ -1,7 +1,10 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import TopicDiversityManager from '@/lib/services/topic-diversity-manager';
 
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const diversityManager = TopicDiversityManager.getInstance();
     const stats = diversityManager.getStats();
@@ -25,6 +28,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { action } = body;

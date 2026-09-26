@@ -1,3 +1,4 @@
+import { communityCommand } from '../community-client';
 import {
   collection,
   doc,
@@ -390,77 +391,7 @@ export const toggleFavoriteSchool = async (
   message?: string;
   favoriteCount?: number;
 }> => {
-  try {
-    // 사용자 문서 참조
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error('사용자를 찾을 수 없습니다.');
-    }
-    
-    const userData = userDoc.data();
-    const favorites = userData.favorites || {};
-    const favoriteSchools = favorites.schools || [];
-    
-    // 학교가 이미 즐겨찾기에 있는지 확인
-    const isAlreadyFavorite = favoriteSchools.includes(schoolId);
-    
-    let updatedFavoriteSchools;
-    let message: string;
-    
-    if (isAlreadyFavorite) {
-      // 즐겨찾기 제거
-      updatedFavoriteSchools = favoriteSchools.filter((id: string) => id !== schoolId);
-      message = '즐겨찾기에서 제거되었습니다.';
-    } else {
-      // 즐겨찾기 추가 - 5개 제한 체크
-      if (favoriteSchools.length >= 5) {
-        return {
-          success: false,
-          isFavorite: false,
-          message: '즐겨찾기는 최대 5개 학교까지만 추가할 수 있습니다. 다른 학교를 제거한 후 다시 시도해주세요.',
-          favoriteCount: favoriteSchools.length
-        };
-      }
-      
-      updatedFavoriteSchools = [...favoriteSchools, schoolId];
-      message = '즐겨찾기에 추가되었습니다.';
-    }
-    
-    // 사용자 문서 업데이트
-    await updateDoc(userRef, {
-      'favorites.schools': updatedFavoriteSchools,
-      updatedAt: serverTimestamp()
-    });
-    
-    // 학교 문서의 즐겨찾기 카운트 업데이트
-    const schoolRef = doc(db, 'schools', schoolId);
-    const schoolDoc = await getDoc(schoolRef);
-    
-    if (schoolDoc.exists()) {
-      const schoolData = schoolDoc.data();
-      const currentFavoriteCount = schoolData.favoriteCount || 0;
-      
-      await updateDoc(schoolRef, {
-        favoriteCount: isAlreadyFavorite ? Math.max(0, currentFavoriteCount - 1) : currentFavoriteCount + 1
-      });
-    }
-    
-    return {
-      success: true,
-      isFavorite: !isAlreadyFavorite,
-      message,
-      favoriteCount: updatedFavoriteSchools.length
-    };
-  } catch (error) {
-    console.error('학교 즐겨찾기 토글 오류:', error);
-    return {
-      success: false,
-      isFavorite: false,
-      message: '즐겨찾기를 변경하는 중 오류가 발생했습니다.'
-    };
-  }
+  return communityCommand('school.favorite', { schoolId }, userId);
 };
 
 /**
@@ -477,90 +408,8 @@ export const selectSchool = async (
     isGraduate?: boolean;
   }
 ): Promise<boolean> => {
-  try {
-    // 사용자 참조
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error('사용자를 찾을 수 없습니다.');
-    }
-    
-    const userData = userDoc.data();
-    const previousSchool = userData.school ? userData.school.id : null;
-    
-    // 검색 토큰 업데이트 (학교명이 변경되므로)
-    const { generateUserSearchTokens } = await import('@/utils/search-tokens');
-    const newSearchTokens = generateUserSearchTokens(
-      userData?.profile?.userName,
-      userData?.profile?.realName,
-      schoolName
-    );
-    
-    // 학교 정보 업데이트
-    const schoolUpdate: {
-      school: {
-        id: string;
-        name: string;
-        grade: string | null;
-        classNumber: string | null;
-        studentNumber: string | null;
-        isGraduate: boolean;
-      };
-      searchTokens: string[];
-      updatedAt: FirebaseTimestamp;
-    } = {
-      school: {
-        id: schoolId,
-        name: schoolName,
-        // 졸업생인 경우 학년, 반, 번호 정보를 null로 설정
-        grade: schoolInfo.isGraduate ? null : schoolInfo.grade || null,
-        classNumber: schoolInfo.isGraduate ? null : schoolInfo.classNumber || null,
-        studentNumber: schoolInfo.isGraduate ? null : schoolInfo.studentNumber || null,
-        isGraduate: schoolInfo.isGraduate || false
-      },
-      searchTokens: newSearchTokens,
-      updatedAt: serverTimestamp()
-    };
-    
-    await updateDoc(userRef, schoolUpdate);
-    
-    // 이전 학교와 현재 선택한 학교가 다른 경우
-    if (previousSchool && previousSchool !== schoolId) {
-      // 이전 학교의 회원 수 감소
-      const prevSchoolRef = doc(db, 'schools', previousSchool);
-      const prevSchoolDoc = await getDoc(prevSchoolRef);
-      
-      if (prevSchoolDoc.exists()) {
-        const prevSchoolData = prevSchoolDoc.data();
-        const currentMemberCount = prevSchoolData.memberCount || 0;
-        
-        await updateDoc(prevSchoolRef, {
-          memberCount: Math.max(0, currentMemberCount - 1),
-          updatedAt: serverTimestamp()
-        });
-      }
-      
-      // 새 학교의 회원 수 증가
-      const newSchoolRef = doc(db, 'schools', schoolId);
-      await updateDoc(newSchoolRef, {
-        memberCount: increment(1),
-        updatedAt: serverTimestamp()
-      });
-    } else if (!previousSchool) {
-      // 처음으로 학교를 선택하는 경우, 해당 학교의 회원 수만 증가
-      const schoolRef = doc(db, 'schools', schoolId);
-      await updateDoc(schoolRef, {
-        memberCount: increment(1),
-        updatedAt: serverTimestamp()
-      });
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('학교 선택 오류:', error);
-    throw new Error('학교 선택 중 오류가 발생했습니다.');
-  }
+  await communityCommand('school.set', { schoolId, schoolInfo }, userId);
+  return true;
 };
 
 /**
@@ -606,63 +455,7 @@ export const validateReferralAndReward = async (
   newUserId: string,
   referralUserName: string
 ): Promise<{ success: boolean; message: string; referrerId?: string }> => {
-  try {
-    if (!referralUserName || referralUserName.trim() === '') {
-      return { success: false, message: '추천 아이디를 입력해주세요.' };
-    }
-
-    // 추천인 검색 (userName으로 검색)
-    const usersRef = collection(db, 'users');
-    const q = query(
-      usersRef,
-      where('profile.userName', '==', referralUserName.trim()),
-      limit(1)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      return { success: false, message: '존재하지 않는 사용자입니다.' };
-    }
-
-    const referrerDoc = querySnapshot.docs[0];
-    const referrerId = referrerDoc.id;
-    const referrerData = referrerDoc.data();
-
-    // 자기 자신 추천 방지
-    if (referrerId === newUserId) {
-      return { success: false, message: '자기 자신을 추천할 수 없습니다.' };
-    }
-
-    // 시스템 설정에서 추천인 경험치 값 가져오기
-    const { getExperienceSettings } = await import('./admin');
-    const expSettings = await getExperienceSettings();
-    
-    const referrerExp = expSettings.referral?.referrerXP || 30; // 추천인이 받는 경험치
-    const refereeExp = expSettings.referral?.refereeXP || 30;   // 추천받은 사람이 받는 경험치
-
-    // 추천인 경험치 업데이트 (레벨업 계산 포함)
-    const { updateUserExperience } = await import('../experience');
-    await updateUserExperience(referrerId, referrerExp);
-
-    // 신규 사용자 경험치 업데이트 (레벨업 계산 포함)
-    await updateUserExperience(newUserId, refereeExp);
-
-    // 신규 사용자에게 추천인 정보 저장
-    await updateDoc(doc(db, 'users', newUserId), {
-      referrerId: referrerId,
-      updatedAt: serverTimestamp()
-    });
-
-    return { 
-      success: true, 
-      message: `${referrerData.profile.userName}님을 추천했습니다! ${referrerData.profile.userName}님은 ${referrerExp}XP, 회원님은 ${refereeExp}XP를 받았습니다.`,
-      referrerId: referrerId
-    };
-  } catch (error) {
-    console.error('추천 처리 오류:', error);
-    return { success: false, message: '추천 처리 중 오류가 발생했습니다.' };
-  }
+  await communityCommand('bootstrap', { referral: referralUserName }, newUserId); return { success: true, message: '추천인이 등록되었습니다. 보상은 별도 검증 후 지급됩니다.' };
 };
 
 // 추천 아이디 중복 확인
@@ -672,7 +465,7 @@ export const checkReferralExists = async (userName: string): Promise<{ exists: b
       return { exists: false };
     }
 
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(db, 'publicProfiles');
     const q = query(
       usersRef,
       where('profile.userName', '==', userName.trim()),

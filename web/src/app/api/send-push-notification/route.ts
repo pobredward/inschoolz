@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -103,6 +104,8 @@ function getChannelIdForNotificationType(type: NotificationType): string {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { userId, notificationType, title, body: messageBody, data } = body;

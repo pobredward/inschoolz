@@ -1,4 +1,5 @@
 'use client';
+import { communityCommand } from '@/lib/community-client';
 
 import { useState, useEffect } from 'react';
 import {
@@ -97,12 +98,7 @@ export function RegionSetupModal({ isOpen, onClose, onComplete }: RegionSetupMod
       
       // Firestore에서 사용자 지역 정보 업데이트
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        'regions.sido': selectedSido,
-        'regions.sigungu': selectedSigungu,
-        'regions.address': `${selectedSido} ${selectedSigungu}`,
-        updatedAt: new Date()
-      });
+      await communityCommand('profile.update', { sido: selectedSido, sigungu: selectedSigungu, address: `${selectedSido} ${selectedSigungu}` }, user.uid);
 
       await refreshUser();
       

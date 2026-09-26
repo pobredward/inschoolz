@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextResponse } from 'next/server';
 
 /**
@@ -58,7 +59,9 @@ interface SystemStats {
  * GET /api/admin/system-stats
  * 시스템 전체 통계 조회
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     console.log('📊 시스템 통계 조회 시작');
 

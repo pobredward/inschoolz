@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function image() { return request.resource.size < 10 * 1024 * 1024 && (request.resource.contentType.matches('image/(jpeg|png|gif|webp)') || request.resource.contentType in ['application/pdf', 'text/plain']); }
+    match /uploads/{uid}/{path=**} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid && image();
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+    match /{path=**} { allow read, write: if false; }
+  }
+}

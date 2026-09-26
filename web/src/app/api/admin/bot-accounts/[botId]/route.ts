@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 
@@ -37,12 +38,14 @@ async function getFirebaseAdmin() {
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { botId: string } }
+  { params }: { params: Promise<{ botId: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   console.log('🗑️ [BOT-DELETE] DELETE 요청 시작');
   
   try {
-    const { botId } = params;
+    const { botId } = await params;
     
     console.log('📋 [BOT-DELETE] 봇 ID:', botId);
     
@@ -136,12 +139,14 @@ export async function DELETE(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { botId: string } }
+  { params }: { params: Promise<{ botId: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   console.log('✏️ [BOT-UPDATE] PUT 요청 시작');
   
   try {
-    const { botId } = params;
+    const { botId } = await params;
     const body = await request.json();
     
     console.log('📋 [BOT-UPDATE] 봇 ID:', botId);

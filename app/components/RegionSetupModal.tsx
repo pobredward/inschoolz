@@ -1,3 +1,4 @@
+import { communityCommand } from '../lib/community-client';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -92,11 +93,7 @@ export default function RegionSetupModal({ visible, onClose, onComplete }: Regio
 
       // Firestore 업데이트
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        'regions.sido': selectedSido,
-        'regions.sigungu': selectedSigungu,
-        updatedAt: new Date()
-      });
+      await communityCommand('profile.update', { sido: selectedSido, sigungu: selectedSigungu, address: `${selectedSido} ${selectedSigungu}` }, user.uid);
 
       // 로컬 상태 업데이트
       setUser({

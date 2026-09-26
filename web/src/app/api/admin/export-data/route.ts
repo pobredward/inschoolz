@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -56,6 +57,8 @@ function convertToCSV(data: any[], headers: string[]): string {
  * 데이터 내보내기 (CSV/JSON)
  */
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'posts'; // posts, bots, schools

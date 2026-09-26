@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Heart, 
-  MessageSquare, 
-  Share2, 
-  Bookmark, 
+import {
+  Heart,
+  MessageSquare,
+  Share2,
+  Bookmark,
   ArrowLeft,
   Eye,
   Clock,
@@ -27,7 +27,7 @@ import { Post, Comment, Board } from '@/types';
 import { ReportModal } from '@/components/ui/report-modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { useQuestTracker } from '@/hooks/useQuestTracker';
-import { 
+import {
   togglePostScrap,
   checkLikeStatus,
   checkScrapStatus,
@@ -43,14 +43,14 @@ import CommentSection from './CommentSection';
 import { formatAbsoluteTime } from '@/lib/utils';
 import { HtmlContent } from '@/components/ui/html-content';
 import { PollVoting } from '@/components/ui/poll-voting';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -80,11 +80,11 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
   const { user } = useAuth();
   const { trackGiveLike } = useQuestTracker();
   const { getPost } = usePostCacheStore();
-  
+
   // 캐시된 데이터 확인 (즉시 표시용)
   const cachedData = getPost(serverPost.id);
   const initialPost = cachedData?.post || serverPost;
-  
+
   const [post, setPost] = useState<Post>(initialPost);
   const [isLiked, setIsLiked] = useState(initialUserState?.isLiked ?? false);
   const [isScrapped, setIsScrapped] = useState(initialUserState?.isScrapped ?? false);
@@ -98,7 +98,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
   const [isBlocking, setIsBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(initialUserState?.isBlocked ?? false);
-  
+
   // 서버 데이터가 도착하면 최신 데이터로 업데이트
   useEffect(() => {
     if (serverPost && serverPost.id === post.id) {
@@ -114,16 +114,16 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
     incrementPostViewCount(post.id).catch(() => {
       // 조회수 증가 실패는 무시 (사용자 경험에 영향 없음)
     });
-    
+
     // 게시글 상세 페이지에 진입했음을 표시
     sessionStorage.setItem('from-post-detail', 'true');
-  }, [post.id]);
+  }, [post.id, user?.uid]);
 
   // 사용자 관련 상태 — 서버에서 initialUserState를 받은 경우 클라이언트 읽기 스킵
   useEffect(() => {
     if (!user) return;
     if (initialUserState) return; // 서버 SSR 상태가 있으면 재조회 불필요
-    
+
     const checkStatuses = async () => {
       try {
         const [likeStatus, scrapStatus, blockStatus] = await Promise.all([
@@ -138,7 +138,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
         console.error('상태 확인 실패:', error);
       }
     };
-    
+
     checkStatuses();
   }, [user, post.id, post.authorId, initialUserState]);
 
@@ -153,7 +153,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
   //       console.error('Board 정보 가져오기 실패:', error);
   //     }
   //   };
-  //   
+  //
   //   // 약간의 지연을 두고 로딩 (다른 중요한 렌더링 완료 후)
   //   const timer = setTimeout(fetchBoardInfo, 100);
   //   return () => clearTimeout(timer);
@@ -169,12 +169,12 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
       const result = await toggleLikePost(post.id, user.uid);
       setIsLiked(result.liked);
       setLikeCount(result.likeCount);
-      
+
       // 퀘스트 트래킹: 좋아요 (6단계) - 좋아요 추가 시에만
       if (result.liked) {
         await trackGiveLike();
       }
-      
+
       toast.success(result.liked ? '좋아요를 눌렀습니다.' : '좋아요를 취소했습니다.');
     } catch (error) {
       console.error('좋아요 처리 실패:', error);
@@ -226,7 +226,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
     // 관리자이거나 작성자인 경우에만 수정 가능
     const isAdmin = user?.role === 'admin';
     const isAuthorUser = user && user.uid === post.authorId;
-    
+
     if (!user || (!isAdmin && !isAuthorUser)) {
       toast.error('수정 권한이 없습니다.');
       return;
@@ -270,7 +270,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
     // 관리자이거나 작성자인 경우에만 삭제 가능
     const isAdmin = user?.role === 'admin';
     const isAuthorUser = user && user.uid === post.authorId;
-    
+
     if (!user || (!isAdmin && !isAuthorUser)) {
       toast.error('삭제 권한이 없습니다.');
       return;
@@ -280,7 +280,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
     try {
       await deletePost(post.id, user.uid);
       toast.success('게시글이 삭제되었습니다.');
-      
+
       // 게시판 타입에 따라 적절한 community 경로로 라우팅
       let redirectPath = '';
       switch (post.type) {
@@ -296,7 +296,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
         default:
           redirectPath = `/community`;
       }
-      
+
       sessionStorage.setItem('from-delete', 'true');
       router.push(redirectPath);
     } catch (error) {
@@ -420,7 +420,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
                 </div>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={() => router.push(`/users/${post.authorId}`)}
                 className="flex items-center gap-2 sm:gap-3 hover:bg-gray-50 rounded-lg p-1 sm:p-2 -m-1 sm:-m-2 transition-colors min-w-0 min-h-touch"
               >
@@ -449,7 +449,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
               </button>
             )}
           </div>
-          
+
           {/* 게시글 메뉴 - 오른쪽 위 모서리 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -457,9 +457,9 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
-              side="bottom" 
+            <DropdownMenuContent
+              align="end"
+              side="bottom"
               sideOffset={5}
               alignOffset={0}
               className="z-50 min-w-[120px]"
@@ -474,7 +474,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
                     수정
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => setShowDeleteDialog(true)}
                     className="text-red-600"
                   >
@@ -484,14 +484,14 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
                 </>
               ) : (
                 <>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => setShowReportModal(true)}
                     className="text-red-600"
                   >
                     <Flag className="h-4 w-4 mr-2" />
                     신고
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={handleBlockClick}
                     disabled={isBlocking}
                     className="text-orange-600"
@@ -506,7 +506,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
         </div>
 
         {/* 게시글 제목 */}
-        <h1 className="text-lg md:text-2xl font-bold mb-3 md:mb-4 leading-tight break-words overflow-wrap-anywhere" 
+        <h1 className="text-lg md:text-2xl font-bold mb-3 md:mb-4 leading-tight break-words overflow-wrap-anywhere"
             style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
           {post.title}
         </h1>
@@ -533,8 +533,8 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
         {/* 투표 */}
         {post.poll && (
           <div className="mb-4 sm:mb-6">
-            <PollVoting 
-              poll={post.poll} 
+            <PollVoting
+              poll={post.poll}
               postId={post.id}
               onVoteUpdate={(updatedPoll) => {
                 // 투표 업데이트 시 필요한 로직 (필요시 구현)
@@ -568,11 +568,11 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
               <span className="text-sm">{commentCount}</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleLike}
               className={`flex items-center gap-1 h-9 px-3 md:h-10 md:px-4 min-h-touch ${isLiked ? 'text-red-500' : 'text-slate-500'}`}
             >
@@ -580,10 +580,10 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
               <span className="text-sm">좋아요</span>
               <span className="text-sm ml-1">{likeCount}</span>
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleScrap}
               className={`flex items-center gap-1 h-9 px-3 md:h-10 md:px-4 min-h-touch ${isScrapped ? 'text-blue-500' : 'text-slate-500'}`}
             >
@@ -591,10 +591,10 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
               <span className="text-sm">스크랩</span>
               <span className="text-sm ml-1">{scrapCount}</span>
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleShare}
               className="flex items-center gap-1 h-9 px-3 md:h-10 md:px-4 min-h-touch text-slate-500"
               title="게시글 공유하기"
@@ -610,8 +610,8 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
 
         {/* 댓글 섹션 */}
         <div className="bg-white md:rounded-lg md:border md:shadow-sm md:mt-4">
-          <CommentSection 
-            postId={post.id} 
+          <CommentSection
+            postId={post.id}
             initialComments={initialComments}
             hasMoreComments={hasMoreComments}
             onCommentCountChange={handleCommentCountChange}
@@ -645,7 +645,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
@@ -662,12 +662,12 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
           <AlertDialogHeader>
             <AlertDialogTitle>{isUserBlocked ? '사용자 차단 해제' : '사용자 차단'}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isUserBlocked 
+              {isUserBlocked
                 ? `${post.authorInfo?.displayName || '이 사용자'}님을 차단 해제하시겠습니까?`
                 : `${post.authorInfo?.displayName || '이 사용자'}님을 차단하시겠습니까?`
               }
               <br />
-              {isUserBlocked 
+              {isUserBlocked
                 ? '차단 해제하면 이 사용자의 게시글과 댓글을 다시 볼 수 있습니다.'
                 : '차단된 사용자의 게시글과 댓글은 "차단한 사용자입니다"로 표시됩니다.'
               }
@@ -675,7 +675,7 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleBlockConfirm}
               disabled={isBlocking}
               className={isUserBlocked ? "bg-blue-600 hover:bg-blue-700" : "bg-orange-600 hover:bg-orange-700"}
@@ -688,4 +688,4 @@ export const PostViewClient = ({ post: serverPost, initialComments, hasMoreComme
       </div>
     </div>
   );
-}; 
+};

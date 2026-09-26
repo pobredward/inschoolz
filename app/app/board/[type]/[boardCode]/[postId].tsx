@@ -1,3 +1,4 @@
+import { communityCommand } from '../../../../lib/community-client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -300,7 +301,7 @@ export default function PostDetailScreen() {
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const scraps = userData.scraps || [];
+        const scraps = userData.scraps?.postIds || [];
         setIsScrapped(scraps.includes(postId));
       }
     } catch (error) {
@@ -316,67 +317,9 @@ export default function PostDetailScreen() {
     }
 
     try {
-      const likesRef = collection(db, 'posts', post.id, 'likes');
-      const likeQuery = query(likesRef, where('userId', '==', user.uid));
-      const likeSnapshot = await getDocs(likeQuery);
-
-      if (!likeSnapshot.empty) {
-        // 좋아요 취소
-        const likeDoc = likeSnapshot.docs[0];
-        await deleteDoc(doc(db, 'posts', post.id, 'likes', likeDoc.id));
-        
-        // 게시글 좋아요 수 감소
-        await updateDoc(doc(db, 'posts', post.id), {
-          'stats.likeCount': increment(-1)
-        });
-        
-        // 사용자 좋아요 수 감소
-        await updateDoc(doc(db, 'users', user.uid), {
-          'stats.likeCount': increment(-1)
-        });
-        
-        setIsLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      } else {
-        // 좋아요 추가
-        await addDoc(likesRef, {
-          userId: user.uid,
-          postId: post.id,
-          createdAt: serverTimestamp()
-        });
-        
-        // 게시글 좋아요 수 증가
-        await updateDoc(doc(db, 'posts', post.id), {
-          'stats.likeCount': increment(1)
-        });
-        
-        // 사용자 좋아요 수 증가
-        await updateDoc(doc(db, 'users', user.uid), {
-          'stats.likeCount': increment(1)
-        });
-        
-        setIsLiked(true);
-        setLikeCount(prev => prev + 1);
-        
-        // 퀘스트 트래킹: 좋아요 누르기 (6단계)
-        try {
-          await trackAction('give_like');
-          console.log('✅ 퀘스트 트래킹: 좋아요 (게시글)');
-        } catch (questError) {
-          console.error('❌ 퀘스트 트래킹 오류:', questError);
-        }
-        
-        // 🆕 퀘스트 트래킹: 좋아요 받기 (게시글 작성자)
-        if (post.authorId && post.authorId !== user.uid) {
-          try {
-            const { trackQuestAction } = await import('../../../../lib/quests/questService');
-            await trackQuestAction(post.authorId, 'get_likes');
-            console.log('✅ 퀘스트 트래킹: 좋아요 받기 (게시글 작성자)');
-          } catch (questError) {
-            console.error('❌ 퀘스트 트래킹 오류 (좋아요 받기):', questError);
-          }
-        }
-      }
+      const result = await communityCommand('post.like', { postId: post.id }, user.uid);
+      setIsLiked(result.liked);
+      setLikeCount(result.likeCount);
     } catch (error) {
       console.error('좋아요 처리 실패:', error);
       Alert.alert('오류', '좋아요 처리에 실패했습니다.');
@@ -521,14 +464,7 @@ export default function PostDetailScreen() {
         return;
       }
       
-      // 조회수 증가 (백그라운드 처리 - await 제거)
-      updateDoc(postRef, {
-        'stats.viewCount': increment(1),
-        updatedAt: serverTimestamp()
-      }).catch(error => console.error('조회수 증가 실패:', error));
-      
-      // UI에 반영할 조회수 업데이트 (낙관적 업데이트)
-      postData.stats.viewCount = (postData.stats.viewCount || 0) + 1;
+      if (user) communityCommand('post.view', { postId }, user.uid).catch(error => console.error('조회수 증가 실패:', error));
 
       // 2단계: 작성자 정보 업데이트와 댓글/사용자 액션을 병렬로 처리
       const authorInfoPromise = (async () => {
@@ -665,7 +601,7 @@ export default function PostDetailScreen() {
       if (userIds.size > 0) {
         const userPromises = Array.from(userIds).map(async (userId) => {
           try {
-            const userDoc = await getDoc(doc(db, 'users', userId));
+            const userDoc = await getDoc(doc(db, 'publicProfiles', userId));
             if (userDoc.exists()) {
               const userData = userDoc.data();
               if (userData?.profile) {
@@ -836,22 +772,8 @@ export default function PostDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // 게시글 소프트 삭제
-              await updateDoc(doc(db, 'posts', postId), {
-                'status.isDeleted': true,
-                updatedAt: Timestamp.now()
-              });
-              
-              // 사용자 게시글 수 감소
-              try {
-                await updateDoc(doc(db, 'users', user.uid), {
-                  'stats.postCount': increment(-1)
-                });
-                console.log('✅ postCount 감소');
-              } catch (countError) {
-                console.error('❌ postCount 감소 오류:', countError);
-              }
-              
+              await communityCommand('post.delete', { postId }, user.uid);
+
               Alert.alert('성공', '게시글이 삭제되었습니다.', [
                 { text: '확인', onPress: () => router.back() }
               ]);

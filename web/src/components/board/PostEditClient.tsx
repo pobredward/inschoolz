@@ -1,4 +1,5 @@
 "use client";
+import { auth } from '@/lib/firebase';
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -83,7 +84,7 @@ const compressImage = (file: File, quality: number = 0.8): Promise<File> => {
 // Firebase Storage에 이미지 업로드
 const uploadImageToStorage = async (file: File, path: string): Promise<string> => {
   try {
-    const storageRef = ref(storage, path);
+    const storageRef = ref(storage, `uploads/${auth.currentUser!.uid}/${path}`);
     const snapshot = await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
@@ -133,7 +134,7 @@ const formSchema = z.object({
   title: z.string().min(2, "제목은 2자 이상이어야 합니다").max(100, "제목은 100자 이하여야 합니다"),
   content: z.string().min(5, "내용은 5자 이상이어야 합니다"),
   isAnonymous: z.boolean(),
-  tags: z.array(z.string()).max(5, "태그는 최대 5개까지 추가할 수 있습니다").default([]), // 기본값 설정
+  tags: z.array(z.string()).max(5, "태그는 최대 5개까지 추가할 수 있습니다"), // 기본값 설정
 });
 
 type FormValues = z.infer<typeof formSchema>;

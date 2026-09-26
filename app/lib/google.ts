@@ -1,3 +1,4 @@
+import { ensureUserProfile } from './community-client';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
@@ -159,34 +160,8 @@ export const loginWithGoogle = async (): Promise<User> => {
     logger.debug('Firebase 로그인 완료:', firebaseUser.uid);
 
     // 6. Firestore에서 사용자 정보 확인/생성
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    return ensureUserProfile();
 
-    if (userDoc.exists()) {
-      // 기존 사용자: 마지막 로그인 시간 업데이트
-      await updateDoc(doc(db, 'users', firebaseUser.uid), {
-        lastLoginAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const userData = userDoc.data() as User;
-      userData.uid = firebaseUser.uid;
-      logger.debug('기존 사용자 로그인 완료:', userData.profile?.userName);
-      return userData;
-    } else {
-      // 신규 사용자: Firestore에 정보 저장
-      logger.debug('신규 사용자 생성 시작');
-
-      const newUser: User = {
-        ...convertGoogleUserToFirebaseUser(data, firebaseUser.uid),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-      logger.debug('신규 사용자 생성 완료:', newUser.profile?.userName);
-
-      return newUser;
-    }
   } catch (error: any) {
     logger.error('Google 로그인 오류:', error);
 

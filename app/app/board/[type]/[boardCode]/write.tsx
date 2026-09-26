@@ -1,3 +1,4 @@
+import { communityCommand } from '../../../../lib/community-client';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -368,18 +369,8 @@ export default function WritePostPage() {
 
       console.log('게시글 데이터:', postData); // 디버깅용
 
-      const docRef = await addDoc(collection(db, 'posts'), postData);
+      const docRef = await communityCommand('post.create', { ...postData, isAnonymous, poll: postData.poll ? { ...postData.poll, question: title.trim() } : undefined }, user.uid);
       const postId = docRef.id;
-
-      // 사용자 게시글 수 증가
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          'stats.postCount': increment(1)
-        });
-        console.log('✅ postCount 증가');
-      } catch (countError) {
-        console.error('❌ postCount 증가 오류:', countError);
-      }
 
       // 퀘스트 트래킹: 게시글 작성 (4단계)
       try {

@@ -1,3 +1,4 @@
+import { ensureUserProfile } from '../lib/community-client';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -91,6 +92,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           if (firebaseUser) {
             try {
               // Firestore에서 사용자 정보 가져오기
+              await ensureUserProfile();
               const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
               
               if (userDoc.exists()) {

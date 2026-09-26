@@ -1,4 +1,6 @@
-"use client";
+'use client';
+import { communityCommand } from '@/lib/community-client';
+import { auth } from '@/lib/firebase';
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -99,7 +101,7 @@ const compressImage = (file: File, quality: number = 0.8): Promise<File> => {
 // Firebase Storage에 이미지 업로드
 const uploadImageToStorage = async (file: File, path: string): Promise<string> => {
   try {
-    const storageRef = ref(storage, path);
+    const storageRef = ref(storage, `uploads/${auth.currentUser!.uid}/${path}`);
     const snapshot = await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
@@ -378,7 +380,7 @@ export default function WritePageClient({ type, code, schoolId, regions }: Write
       console.log('게시글 데이터:', postData); // 디버깅용
       
       // 실제 Firestore에 저장
-      const docRef = await addDoc(collection(db, "posts"), postData);
+      const docRef = await communityCommand('post.create', { ...postData, isAnonymous, poll: postData.poll ? { ...postData.poll, question: title.trim() } : undefined }, user.uid);
       const postId = docRef.id;
       
       console.log('✅ 게시글 작성 완료:', postId);

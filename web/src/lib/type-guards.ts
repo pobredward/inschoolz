@@ -9,7 +9,7 @@ export function isValidUser(user: any): user is User {
     typeof user === 'object' &&
     typeof user.uid === 'string' &&
     user.uid.length > 0 &&
-    typeof user.email === 'string' &&
+    // Public profiles intentionally omit email and other private fields.
     user.profile &&
     typeof user.profile === 'object' &&
     typeof user.profile.userName === 'string' &&
@@ -205,4 +205,4 @@ export function getSafeImageUrl(url: string | undefined | null, defaultUrl: stri
     // 그 외의 경우 기본 이미지 반환
     return defaultUrl;
   }
-} 
+}

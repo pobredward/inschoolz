@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendWebPushNotification } from '@/lib/unified-push-notification-sender';
 import { doc, getDoc } from 'firebase/firestore';
@@ -5,6 +6,8 @@ import { db } from '@/lib/firebase';
 import { NotificationType } from '@/types';
 
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { userId, notificationType, title, body: messageBody, data } = body;

@@ -1,9 +1,9 @@
+import { relationshipKey } from '@/lib/server/schema';
 /**
  * 서버 전용 커뮤니티 데이터 헬퍼 (Admin SDK, RSC에서 사용)
  */
 import { firestore } from '@/lib/firebase-admin';
 import { unstable_cache } from 'next/cache';
-import { getBoardsByType } from '@/lib/api/board';
 import type { BoardType } from '@/types/board';
 
 interface SerializedBoard {
@@ -144,8 +144,11 @@ const fetchInitialNationalData = unstable_cache(
 
 // 서버 전용: getBoardsByType에 unstable_cache 1시간 적용 (RSC 페이지에서만 사용)
 export const getBoardsByTypeCached = unstable_cache(
-  getBoardsByType,
-  ['boards-by-type'],
+  async (type: BoardType) => {
+    const snapshot = await firestore.collection('boards').where('type', '==', type).where('isActive', '==', true).orderBy('order', 'asc').get();
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+  },
+  ['boards-by-type-admin-v2'],
   { revalidate: 3600, tags: ['boards'] }
 );
 
@@ -181,7 +184,7 @@ export async function getPostUserState(
 
     const likeRef = db.doc(`posts/${postId}/likes/${userId}`);
     const userRef = db.doc(`users/${userId}`);
-    const blockRef = authorId ? db.doc(`users/${userId}/blocks/${authorId}`) : null;
+    const blockRef = authorId ? db.doc(`userRelationships/${relationshipKey(userId, authorId!, 'block')}`) : null;
 
     const [likeSnap, userSnap, blockSnap] = await Promise.all([
       likeRef.get(),
@@ -189,12 +192,12 @@ export async function getPostUserState(
       blockRef ? blockRef.get() : Promise.resolve(null),
     ]);
 
-    const scraps: string[] = userSnap.exists ? (userSnap.data()?.scraps || []) : [];
+    const scraps: string[] = userSnap.exists ? (userSnap.data()?.scraps?.postIds || []) : [];
 
     return {
       isLiked: likeSnap.exists,
       isScrapped: scraps.includes(postId),
-      isBlocked: blockSnap ? blockSnap.exists : false,
+      isBlocked: blockSnap?.data()?.status === 'active',
     };
   } catch (error) {
     console.error('게시글 유저 상태 조회 실패:', error);
@@ -243,7 +246,7 @@ function buildSerializedComment(
     content: d.content || '',
     authorId: d.authorId || null,
     isAnonymous,
-    anonymousAuthor: d.anonymousAuthor || null,
+    anonymousAuthor: d.anonymousAuthor ? { nickname: d.anonymousAuthor.nickname || '익명' } : null,
     parentId: d.parentId || null,
     parentCommentId,
     fake: d.fake || false,
@@ -298,6 +301,7 @@ export async function getPostDetailAdmin(
     if (!postSnap.exists) return null;
 
     const postData = postSnap.data()!;
+    if (postData.status?.isDeleted || postData.status?.isHidden || postData.status?.isBlocked || postData.type !== boardType) return null;
     const authorId: string | null = postData.authorId || null;
 
     // 2단계: 작성자 프로필 + 유저 상태를 post 조회 직후 병렬로 시작
@@ -307,7 +311,7 @@ export async function getPostDetailAdmin(
       !!authorId;
 
     const [authorSnap, userStateResult] = await Promise.all([
-      needsAuthorFetch ? db.doc(`users/${authorId!}`).get() : Promise.resolve(null),
+      needsAuthorFetch ? db.doc(`publicProfiles/${authorId!}`).get() : Promise.resolve(null),
       userId
         ? (async (): Promise<PostUserState> => {
             try {
@@ -315,14 +319,14 @@ export async function getPostDetailAdmin(
                 db.doc(`posts/${postId}/likes/${userId}`).get(),
                 db.doc(`users/${userId}`).get(),
                 authorId && authorId !== userId
-                  ? db.doc(`users/${userId}/blocks/${authorId}`).get()
+                  ? db.doc(`userRelationships/${relationshipKey(userId, authorId!, 'block')}`).get()
                   : Promise.resolve(null),
               ]);
-              const scraps: string[] = userSnap.exists ? (userSnap.data()?.scraps || []) : [];
+              const scraps: string[] = userSnap.exists ? (userSnap.data()?.scraps?.postIds || []) : [];
               return {
                 isLiked: likeSnap.exists,
                 isScrapped: scraps.includes(postId),
-                isBlocked: blockSnap ? blockSnap.exists : false,
+                isBlocked: blockSnap?.data()?.status === 'active',
               };
             } catch {
               return defaultUserState;
@@ -411,7 +415,7 @@ export async function getPostDetailAdmin(
     const userDataMap = new Map<string, { displayName: string; profileImageUrl: string }>();
     if (commentUserIds.size > 0) {
       try {
-        const userRefs = Array.from(commentUserIds).map(uid => db.doc(`users/${uid}`));
+        const userRefs = Array.from(commentUserIds).map(uid => db.doc(`publicProfiles/${uid}`));
         const userSnaps = await db.getAll(...userRefs);
         userSnaps.forEach(snap => {
           if (snap.exists) {

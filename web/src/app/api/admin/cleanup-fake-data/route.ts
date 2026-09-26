@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import * as admin from 'firebase-admin';
@@ -48,6 +49,8 @@ async function getFirebaseAdmin() {
  * AI 데이터 삭제 (간단한 버전)
  */
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   console.log('🚀 [CLEANUP-API] POST 요청 시작');
   
   try {

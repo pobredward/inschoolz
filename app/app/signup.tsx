@@ -126,7 +126,8 @@ export default function SignupScreen() {
         emailForm.password, 
         userName,
         {
-          referral: selectedReferralUser?.userName || emailForm.referral.trim()
+          referral: selectedReferralUser?.userName || emailForm.referral.trim(),
+          termsAgreed: true, privacyAgreed: true
         }
       );
       setUser(user);

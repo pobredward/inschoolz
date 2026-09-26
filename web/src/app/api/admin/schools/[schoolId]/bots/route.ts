@@ -1,12 +1,15 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { schoolId: string } }
+  { params }: { params: Promise<{ schoolId: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
-    const { schoolId } = params;
+    const { schoolId } = await params;
     
     if (!schoolId) {
       return NextResponse.json(

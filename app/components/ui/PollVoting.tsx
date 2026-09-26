@@ -1,3 +1,4 @@
+import { communityCommand } from '../../lib/community-client';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -116,9 +117,9 @@ export const PollVoting = ({ postId, poll, onVoteUpdate }: PollVotingProps) => {
       };
 
       // Firestore 업데이트
-      await updateDoc(postRef, {
-        poll: updatedPoll
-      });
+      const result = await communityCommand('poll.vote', { postId, option: optionIndex });
+      Object.assign(updatedPoll, result.poll);
+      setLocalPoll(result.poll);
 
       // 로컬 상태 업데이트
       setLocalPoll(updatedPoll);
@@ -186,9 +187,9 @@ export const PollVoting = ({ postId, poll, onVoteUpdate }: PollVotingProps) => {
           userVotes: updatedUserVotes
         };
         
-        await updateDoc(postRef, {
-          poll: updatedPoll
-        });
+        const result = await communityCommand('poll.vote', { postId, option: null });
+      Object.assign(updatedPoll, result.poll);
+      setLocalPoll(result.poll);
 
         setLocalPoll(updatedPoll);
         setHasVoted(false);

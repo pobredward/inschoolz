@@ -74,7 +74,7 @@ export default function TypingGameScreen() {
   const loadRankings = async () => {
     try {
       const usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('gameStats.typingGame.bestReactionTime', '>', 0),
         orderBy('gameStats.typingGame.bestReactionTime', 'desc'),
         limit(10)

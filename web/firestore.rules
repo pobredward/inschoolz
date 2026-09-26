@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function active() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'active') == 'active';
+    }
+    match /users/{uid} {
+      allow read: if owner(uid) || admin();
+      // Core profile, roles, XP, counters and account creation go through the verified server.
+      allow update: if admin() || (owner(uid) && active()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'favorites', 'notificationSettings', 'fcmToken', 'fcmTokens', 'pushToken', 'pushTokens',
+          'expoPushToken', 'webPushToken', 'lastLoginAt', 'updatedAt'
+        ]));
+      allow create, delete: if admin();
+      match /{collection}/{entry} {
+        allow read: if owner(uid) || admin();
+        allow write: if admin();
+      }
+    }
+    match /publicProfiles/{uid} { allow read: if true; allow write: if false; }
+    match /usernames/{name} { allow get: if true; allow list, write: if false; }
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if admin();
+      match /comments/{commentId} {
+        allow read: if true;
+        allow write: if admin();
+        match /likes/{uid} { allow read: if owner(uid) || admin(); allow write: if false; }
+      }
+      match /likes/{uid} { allow read: if signedIn(); allow write: if false; }
+      match /scraps/{uid} { allow read: if owner(uid) || admin(); allow write: if false; }
+      match /views/{uid} { allow read, write: if false; }
+    }
+    match /{path=**}/comments/{commentId} { allow read: if true; }
+    match /userRelationships/{id} {
+      allow read: if resource.data.type == 'follow' || (signedIn() && resource.data.userId == request.auth.uid) || admin();
+      allow write: if false;
+    }
+    match /notifications/{id} {
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid || admin();
+      allow update: if admin() || (signedIn() && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt', 'updatedAt'])
+        && request.resource.data.isRead is bool);
+      allow create: if admin();
+    }
+    match /reports/{id} {
+      allow read: if admin() || (signedIn() && resource.data.reporterId == request.auth.uid);
+      allow create: if active() && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly(['reporterInfo', 'customReason', 'targetContent', 'boardCode', 'schoolId', 'regions', 'reporterId', 'reporterName', 'targetId', 'targetType', 'targetAuthorId', 'postId', 'reason', 'description', 'status', 'createdAt', 'updatedAt', 'evidence', 'priority', 'category']);
+      allow update: if admin() || (signedIn() && resource.data.reporterId == request.auth.uid && resource.data.status == 'pending' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description', 'updatedAt']));
+      allow delete: if admin() || (signedIn() && resource.data.reporterId == request.auth.uid && resource.data.status == 'pending');
+    }
+    match /quests/{uid} {
+      allow read: if owner(uid) || admin();
+      allow update: if owner(uid) && active()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeRewards', 'updatedAt'])
+        && request.resource.data.activeRewards.keys().hasOnly(['title', 'frame', 'effect', 'badges'])
+        && (request.resource.data.activeRewards.get('title', '') == '' || request.resource.data.activeRewards.title in resource.data.earnedRewards.titles)
+        && (request.resource.data.activeRewards.get('frame', '') == '' || request.resource.data.activeRewards.frame in resource.data.earnedRewards.frames)
+        && (request.resource.data.activeRewards.get('effect', '') == '' || request.resource.data.activeRewards.effect in resource.data.earnedRewards.effects)
+        && request.resource.data.activeRewards.get('badges', []).size() <= 5
+        && request.resource.data.activeRewards.get('badges', []).hasOnly(resource.data.earnedRewards.badges);
+      allow create, delete: if admin();
+    }
+    match /system/experienceSettings { allow read: if true; allow write: if admin(); }
+    match /attendance/{uid} { allow read: if owner(uid) || admin(); allow write: if false; }
+    match /verificationRequests/{id} {
+      allow read: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if active() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update, delete: if admin();
+    }
+    match /{collection}/{id} {
+      allow read: if collection in ['boards', 'schools', 'regions', 'systemSettings', 'settings', 'games', 'notices'];
+      allow write: if admin() && collection in ['boards', 'schools', 'regions', 'systemSettings', 'settings', 'games', 'notices'];
+    }
+    // No broad authenticated-user write rule: all unlisted paths are denied.
+    match /{document=**} { allow read, write: if admin(); }
+  }
+}

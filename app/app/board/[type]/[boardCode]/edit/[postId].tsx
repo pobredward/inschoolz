@@ -1,3 +1,4 @@
+import { communityCommand } from '../../../../../lib/community-client';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -165,7 +166,7 @@ export default function EditPostPage() {
 
 
       // 게시글 업데이트
-      await updateDoc(doc(db, 'posts', postId), updateData);
+      await communityCommand('post.update', { postId, data: { title: title.trim(), content: content.trim(), isAnonymous } });
 
       Alert.alert('성공', '게시글이 수정되었습니다.', [
         {

@@ -58,7 +58,7 @@ export default function ReactionGameScreen() {
   const loadRankings = async () => {
     try {
       const usersQuery = query(
-        collection(db, 'users'),
+        collection(db, 'publicProfiles'),
         where('gameStats.reactionGame.bestReactionTime', '>', 0),
         orderBy('gameStats.reactionGame.bestReactionTime', 'asc'),
         limit(10)

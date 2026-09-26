@@ -13,10 +13,10 @@ interface ArticleStructuredDataProps {
   keywords?: string[];
 }
 
-export function ArticleStructuredData({ 
-  post, 
-  url, 
-  boardName, 
+export function ArticleStructuredData({
+  post,
+  url,
+  boardName,
   communityType,
   locationInfo,
   categories = [],
@@ -24,7 +24,7 @@ export function ArticleStructuredData({
 }: ArticleStructuredDataProps) {
   const authorName = post.authorInfo?.isAnonymous ? '익명' : (post.authorInfo?.displayName || '사용자');
   const images = post.attachments?.filter(att => att.type === 'image').map(att => att.url) || [];
-  
+
   // 커뮤니티 타입별 섹션 이름
   let sectionName = '';
   switch (communityType) {
@@ -75,13 +75,13 @@ export function ArticleStructuredData({
         "userInteractionCount": post.stats?.likeCount || 0
       },
       {
-        "@type": "InteractionCounter", 
+        "@type": "InteractionCounter",
         "interactionType": "https://schema.org/CommentAction",
         "userInteractionCount": post.stats?.commentCount || 0
       },
       {
         "@type": "InteractionCounter",
-        "interactionType": "https://schema.org/ViewAction", 
+        "interactionType": "https://schema.org/ViewAction",
         "userInteractionCount": post.stats?.viewCount || 0
       }
     ],
@@ -104,7 +104,7 @@ export function ArticleStructuredData({
         "address": locationInfo.address
       }] : []),
       ...categories.map(category => ({
-        "@type": "Thing", 
+        "@type": "Thing",
         "name": category,
         "description": `${category} 관련 게시글`
       }))
@@ -130,9 +130,9 @@ interface BreadcrumbStructuredDataProps {
   sigungu?: string;
 }
 
-export function BreadcrumbStructuredData({ 
-  boardCode, 
-  boardName, 
+export function BreadcrumbStructuredData({
+  boardCode,
+  boardName,
   postTitle,
   communityType,
   locationInfo,
@@ -140,7 +140,7 @@ export function BreadcrumbStructuredData({
   sido,
   sigungu
 }: BreadcrumbStructuredDataProps) {
-  const breadcrumbItems = [
+  const breadcrumbItems: { '@type': string; position: number; name: string; item?: string }[] = [
     {
       "@type": "ListItem",
       "position": 1,
@@ -148,7 +148,7 @@ export function BreadcrumbStructuredData({
       "item": "https://inschoolz.com"
     },
     {
-      "@type": "ListItem", 
+      "@type": "ListItem",
       "position": 2,
       "name": "커뮤니티",
       "item": "https://inschoolz.com/community"
@@ -162,7 +162,7 @@ export function BreadcrumbStructuredData({
         {
           "@type": "ListItem",
           "position": 3,
-          "name": "전국 커뮤니티", 
+          "name": "전국 커뮤니티",
           "item": "https://inschoolz.com/community?tab=national"
         },
         {
@@ -182,14 +182,14 @@ export function BreadcrumbStructuredData({
           "item": "https://inschoolz.com/community?tab=school"
         },
         {
-          "@type": "ListItem", 
+          "@type": "ListItem",
           "position": 4,
           "name": locationInfo?.name || "학교",
           "item": `https://inschoolz.com/community/school/${schoolId}/${boardCode}`
         },
         {
           "@type": "ListItem",
-          "position": 5, 
+          "position": 5,
           "name": boardName,
           "item": `https://inschoolz.com/community/school/${schoolId}/${boardCode}`
         }
@@ -223,8 +223,7 @@ export function BreadcrumbStructuredData({
   breadcrumbItems.push({
     "@type": "ListItem",
     "position": breadcrumbItems.length + 1,
-    "name": postTitle,
-    "item": window.location.href
+    "name": postTitle
   });
 
   const structuredData = {
@@ -239,4 +238,4 @@ export function BreadcrumbStructuredData({
       dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
     />
   );
-} 
+}

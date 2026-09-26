@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -49,6 +50,8 @@ interface SchoolStats {
  * 학교별 통계 조회 (필터링 지원)
  */
 export async function GET(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const region = searchParams.get('region') || 'all';

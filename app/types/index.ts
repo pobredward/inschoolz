@@ -505,6 +505,7 @@ export interface SystemSettings {
 
 // 퀘스트 관련 타입 정의
 export type QuestType = 
+  | 'main'
   | 'tutorial'      // 튜토리얼 체인
   | 'fame'          // 인기도 체인
   | 'writer'        // 작가 체인

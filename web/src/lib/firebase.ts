@@ -1,3 +1,6 @@
+import { connectFirestoreEmulator } from 'firebase/firestore';
+import { connectAuthEmulator } from 'firebase/auth';
+import { connectStorageEmulator } from 'firebase/storage';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -20,6 +23,16 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const storage = getStorage(app);
 const auth = getAuth(app);
+const emulatorHost = process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST;
+const emulatorState = globalThis as typeof globalThis & { __inschoolzEmulatorInstances?: WeakSet<object> };
+if (emulatorHost) {
+  if (!firebaseConfig.projectId?.startsWith('demo-')) throw new Error('Emulators require a demo-* Firebase project.');
+  const connected = emulatorState.__inschoolzEmulatorInstances ||= new WeakSet<object>();
+  if (!connected.has(auth)) { connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true }); connected.add(auth); }
+  if (!connected.has(db)) { connectFirestoreEmulator(db, emulatorHost, 8080); connected.add(db); }
+  if (!connected.has(storage)) { connectStorageEmulator(storage, emulatorHost, 9199); connected.add(storage); }
+}
+
 
 // Firebase Auth 지속성 설정 (브라우저 환경에서만 실행)
 if (typeof window !== 'undefined') {
@@ -34,7 +47,7 @@ if (typeof window !== 'undefined') {
 
 // 클라이언트 측 분석 설정 (SSR 환경에서는 실행되지 않음)
 let analytics = null;
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !emulatorHost) {
   // 브라우저 환경에서만 실행
   isSupported().then(yes => yes && (analytics = getAnalytics(app)));
 }
@@ -55,7 +68,8 @@ export const uploadImage = async (file: File): Promise<string> => {
     }
 
     const fileName = `${uuidv4()}_${file.name}`;
-    const storageRef = ref(storage, `images/${fileName}`);
+    if (!auth.currentUser) throw new Error('로그인이 필요합니다.');
+    const storageRef = ref(storage, `uploads/${auth.currentUser!.uid}/images/${fileName}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     return new Promise((resolve, reject) => {
@@ -75,7 +89,7 @@ export const uploadImage = async (file: File): Promise<string> => {
         (error) => {
           clearTimeout(timeoutId);
           console.error('Upload error:', error);
-          
+
           // Firebase Storage 에러 메시지 변환
           let errorMessage = '이미지 업로드에 실패했습니다.';
           if (error.code === 'storage/unauthorized') {
@@ -87,7 +101,7 @@ export const uploadImage = async (file: File): Promise<string> => {
           } else if (error.code === 'storage/retry-limit-exceeded') {
             errorMessage = '업로드 재시도 횟수를 초과했습니다. 인터넷 연결을 확인해주세요.';
           }
-          
+
           reject(new Error(errorMessage));
         },
         async () => {
@@ -108,4 +122,4 @@ export const uploadImage = async (file: File): Promise<string> => {
   }
 };
 
-export { app, db, storage, auth, analytics }; 
+export { app, db, storage, auth, analytics };

@@ -1,4 +1,5 @@
 'use client';
+import { communityCommand } from '@/lib/community-client';
 
 import React, { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -109,9 +110,9 @@ export const PollVoting = ({ postId, poll, onVoteUpdate }: PollVotingProps) => {
 
       // Firestore 업데이트 (백그라운드에서)
       const postRef = doc(db, 'posts', postId);
-      await updateDoc(postRef, {
-        poll: updatedPoll
-      });
+      const result = await communityCommand('poll.vote', { postId, option: optionIndex });
+      Object.assign(updatedPoll, result.poll);
+      setLocalPoll(result.poll);
       
       if (onVoteUpdate) {
         onVoteUpdate(updatedPoll);
@@ -166,9 +167,9 @@ export const PollVoting = ({ postId, poll, onVoteUpdate }: PollVotingProps) => {
 
         // Firestore 업데이트 (백그라운드에서)
         const postRef = doc(db, 'posts', postId);
-        await updateDoc(postRef, {
-          poll: updatedPoll
-        });
+        const result = await communityCommand('poll.vote', { postId, option: null });
+      Object.assign(updatedPoll, result.poll);
+      setLocalPoll(result.poll);
 
         if (onVoteUpdate) {
           onVoteUpdate(updatedPoll);

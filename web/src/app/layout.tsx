@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/providers/Providers";
 import { Header } from "@/components/layout/header";
@@ -7,13 +6,6 @@ import Footer from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/toaster";
 import FloatingQuestButton from "@/components/quests/FloatingQuestButton";
 // import { PWAPrompt } from "@/components/ui/pwa-prompt";
-
-// 한글 폰트 - 잼민이체 스타일에 가까운 귀여운 폰트
-const notoSansKR = Noto_Sans_KR({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-  variable: "--font-noto-sans-kr",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -196,7 +188,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${notoSansKR.variable} antialiased min-h-screen bg-background font-sans touch-manipulation`}>
+      <body className="antialiased min-h-screen bg-background font-sans touch-manipulation">
         <Providers>
           <div className="flex flex-col overflow-x-clip" style={{ position: 'relative' }}>
             <Header />

@@ -1,7 +1,10 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { PostService } from '@/lib/services/post-service';
 
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { schoolLimit = 10, postsPerSchool = 1, delayBetweenPosts = 3000 } = body;

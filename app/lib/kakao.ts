@@ -1,3 +1,4 @@
+import { ensureUserProfile } from './community-client';
 import { User } from '../types';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { signInWithCustomToken, updateProfile } from 'firebase/auth';
@@ -229,26 +230,8 @@ export const loginWithKakao = async (): Promise<User> => {
     }
 
     // 6. Firestore에서 사용자 정보 확인/생성
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    return ensureUserProfile();
 
-    if (userDoc.exists()) {
-      // 기존 사용자: 마지막 로그인 시간 업데이트
-      await updateDoc(doc(db, 'users', firebaseUser.uid), {
-        lastLoginAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      const userData = userDoc.data() as User;
-      userData.uid = firebaseUser.uid;
-      logger.debug('기존 사용자 로그인 완료:', userData.profile?.userName);
-      return userData;
-    } else {
-      // 신규 사용자: Firestore에 정보 저장
-      const newUser = convertKakaoUserToFirebaseUser(kakaoUser, firebaseUser.uid);
-      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-      logger.debug('신규 사용자 생성 완료:', newUser.profile?.userName);
-      return newUser;
-    }
   } catch (error) {
     logger.error('카카오 로그인 실패:', error);
     throw error;
@@ -334,60 +317,8 @@ export const loginWithKakaoOptimized = async (): Promise<User> => {
     }
 
     // 6. Firestore에서 사용자 정보 확인/생성
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    return ensureUserProfile();
 
-    if (userDoc.exists()) {
-      // 기존 사용자: 마지막 로그인 시간 및 프로필 이미지 업데이트
-      const updateData: any = {
-        lastLoginAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      // 카카오 프로필 이미지 HTTPS 변환 및 업데이트
-      const convertKakaoUrlToHttps = (url?: string): string => {
-        if (!url) return '';
-        if (url.startsWith('http://k.kakaocdn.net/')) {
-          return url.replace('http://', 'https://');
-        }
-        return url;
-      };
-
-      const originalKakaoImageUrl = kakaoUser.kakao_account.profile?.profile_image_url;
-      const kakaoProfileImageUrl = convertKakaoUrlToHttps(originalKakaoImageUrl);
-      const existingUserData = userDoc.data();
-      const existingProfileImageUrl = existingUserData?.profile?.profileImageUrl;
-      
-      if (kakaoProfileImageUrl && 
-          (!existingProfileImageUrl || existingProfileImageUrl !== kakaoProfileImageUrl)) {
-        updateData['profile.profileImageUrl'] = kakaoProfileImageUrl;
-        logger.debug('🖼️ 기존 사용자 프로필 이미지 업데이트:', {
-          old: existingProfileImageUrl,
-          new: kakaoProfileImageUrl,
-          original: originalKakaoImageUrl,
-          wasConverted: originalKakaoImageUrl !== kakaoProfileImageUrl
-        });
-      }
-      
-      await updateDoc(doc(db, 'users', firebaseUser.uid), updateData);
-
-      const userData = userDoc.data() as User;
-      userData.uid = firebaseUser.uid;
-      
-      // 업데이트된 프로필 이미지 URL 반영
-      if (kakaoProfileImageUrl && updateData['profile.profileImageUrl']) {
-        userData.profile = userData.profile || {};
-        userData.profile.profileImageUrl = kakaoProfileImageUrl;
-      }
-      
-      logger.debug('기존 사용자 로그인 완료:', userData.profile?.userName);
-      return userData;
-    } else {
-      // 신규 사용자: Firestore에 정보 저장
-      const newUser = convertKakaoUserToFirebaseUser(kakaoUser, firebaseUser.uid);
-      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-      logger.debug('신규 사용자 생성 완료:', newUser.profile?.userName);
-      return newUser;
-    }
   } catch (error) {
     logger.error('카카오 로그인 실패:', error);
     throw error;

@@ -1,3 +1,4 @@
+import { communityCommand } from './community-client';
 import { db } from './firebase';
 import { 
   doc, 
@@ -38,77 +39,7 @@ export const toggleFavoriteSchool = async (
   message?: string;
   favoriteCount?: number;
 }> => {
-  try {
-    // 사용자 문서 참조
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error('사용자를 찾을 수 없습니다.');
-    }
-    
-    const userData = userDoc.data();
-    const favorites = userData.favorites || {};
-    const favoriteSchools = favorites.schools || [];
-    
-    // 학교가 이미 즐겨찾기에 있는지 확인
-    const isAlreadyFavorite = favoriteSchools.includes(schoolId);
-    
-    let updatedFavoriteSchools;
-    let message: string;
-    
-    if (isAlreadyFavorite) {
-      // 즐겨찾기 제거
-      updatedFavoriteSchools = favoriteSchools.filter((id: string) => id !== schoolId);
-      message = '즐겨찾기에서 제거되었습니다.';
-    } else {
-      // 즐겨찾기 추가 - 5개 제한 체크
-      if (favoriteSchools.length >= 5) {
-        return {
-          success: false,
-          isFavorite: false,
-          message: '즐겨찾기는 최대 5개 학교까지만 추가할 수 있습니다. 다른 학교를 제거한 후 다시 시도해주세요.',
-          favoriteCount: favoriteSchools.length
-        };
-      }
-      
-      updatedFavoriteSchools = [...favoriteSchools, schoolId];
-      message = '즐겨찾기에 추가되었습니다.';
-    }
-    
-    // 사용자 문서 업데이트
-    await updateDoc(userRef, {
-      'favorites.schools': updatedFavoriteSchools,
-      updatedAt: serverTimestamp()
-    });
-    
-    // 학교 문서의 즐겨찾기 카운트 업데이트
-    const schoolRef = doc(db, 'schools', schoolId);
-    const schoolDoc = await getDoc(schoolRef);
-    
-    if (schoolDoc.exists()) {
-      const schoolData = schoolDoc.data();
-      const currentFavoriteCount = schoolData.favoriteCount || 0;
-      
-      await updateDoc(schoolRef, {
-        favoriteCount: isAlreadyFavorite ? Math.max(0, currentFavoriteCount - 1) : currentFavoriteCount + 1
-      });
-    }
-    
-    return {
-      success: true,
-      isFavorite: !isAlreadyFavorite,
-      message,
-      favoriteCount: updatedFavoriteSchools.length
-    };
-  } catch (error) {
-    console.error('학교 즐겨찾기 토글 오류:', error);
-    return {
-      success: false,
-      isFavorite: false,
-      message: '즐겨찾기를 변경하는 중 오류가 발생했습니다.'
-    };
-  }
+  return communityCommand('school.favorite', { schoolId }, userId);
 };
 
 /**
@@ -304,123 +235,8 @@ export const setMainSchool = async (userId: string, schoolId: string): Promise<{
   success: boolean;
   updatedUser?: any;
 }> => {
-  try {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error('사용자를 찾을 수 없습니다.');
-    }
-    
-    const userData = userDoc.data();
-    const favorites = userData.favorites || {};
-    const favoriteSchools = favorites.schools || [];
-    
-    // 해당 학교가 즐겨찾기에 있는지 확인
-    if (!favoriteSchools.includes(schoolId)) {
-      throw new Error('즐겨찾기에 없는 학교는 메인 학교로 설정할 수 없습니다.');
-    }
-    
-    // 학교 정보 가져오기
-    const school = await getSchoolById(schoolId);
-    if (!school) {
-      throw new Error('학교 정보를 찾을 수 없습니다.');
-    }
-    
-    // 이전 메인 학교 ID 확인
-    const previousSchoolId = userData.school?.id;
-    
-    // 업데이트할 학교 데이터
-    const updatedSchoolData = {
-      id: schoolId,
-      name: school.KOR_NAME,
-      grade: userData.school?.grade || '',
-      classNumber: userData.school?.classNumber || '',
-      studentNumber: userData.school?.studentNumber || '',
-      isGraduate: userData.school?.isGraduate || false
-    };
-    
-    // 메인 학교 설정 (올바른 경로로 수정)
-    await updateDoc(userRef, {
-      school: updatedSchoolData,
-      updatedAt: serverTimestamp()
-    });
-    
-    // 이전 학교와 현재 선택한 학교가 다른 경우 memberCount 업데이트
-    if (previousSchoolId && previousSchoolId !== schoolId) {
-      // 이전 학교의 회원 수 감소
-      try {
-        const prevSchoolRef = doc(db, 'schools', previousSchoolId);
-        const prevSchoolDoc = await getDoc(prevSchoolRef);
-        
-        if (prevSchoolDoc.exists()) {
-          const prevSchoolData = prevSchoolDoc.data();
-          const currentMemberCount = prevSchoolData.memberCount || 0;
-          
-          await updateDoc(prevSchoolRef, {
-            memberCount: Math.max(0, currentMemberCount - 1),
-            updatedAt: serverTimestamp()
-          });
-        }
-      } catch (prevSchoolError) {
-        console.error('이전 학교 memberCount 업데이트 오류:', prevSchoolError);
-        // 이전 학교 업데이트 실패해도 메인 학교 설정은 성공으로 처리
-      }
-      
-      // 새 학교의 회원 수 증가
-      try {
-        const newSchoolRef = doc(db, 'schools', schoolId);
-        const newSchoolDoc = await getDoc(newSchoolRef);
-        
-        if (newSchoolDoc.exists()) {
-          const newSchoolData = newSchoolDoc.data();
-          const currentMemberCount = newSchoolData.memberCount || 0;
-          
-          await updateDoc(newSchoolRef, {
-            memberCount: currentMemberCount + 1,
-            updatedAt: serverTimestamp()
-          });
-        }
-      } catch (newSchoolError) {
-        console.error('새 학교 memberCount 업데이트 오류:', newSchoolError);
-        // 새 학교 업데이트 실패해도 메인 학교 설정은 성공으로 처리
-      }
-    } else if (!previousSchoolId) {
-      // 처음으로 메인 학교를 설정하는 경우, 해당 학교의 회원 수만 증가
-      try {
-        const schoolRef = doc(db, 'schools', schoolId);
-        const schoolDoc = await getDoc(schoolRef);
-        
-        if (schoolDoc.exists()) {
-          const schoolData = schoolDoc.data();
-          const currentMemberCount = schoolData.memberCount || 0;
-          
-          await updateDoc(schoolRef, {
-            memberCount: currentMemberCount + 1,
-            updatedAt: serverTimestamp()
-          });
-        }
-      } catch (schoolError) {
-        console.error('학교 memberCount 업데이트 오류:', schoolError);
-        // 학교 업데이트 실패해도 메인 학교 설정은 성공으로 처리
-      }
-    }
-    
-    // 업데이트된 사용자 데이터 반환
-    const updatedUser = {
-      ...userData,
-      school: updatedSchoolData,
-      updatedAt: serverTimestamp()
-    };
-    
-    return {
-      success: true,
-      updatedUser
-    };
-  } catch (error) {
-    console.error('메인 학교 설정 오류:', error);
-    throw new Error('메인 학교를 설정하는 중 오류가 발생했습니다.');
-  }
+  await communityCommand('school.set', { schoolId }, userId);
+  return { success: true, updatedUser: (await getDoc(doc(db, 'users', userId))).data() };
 };
 
 /**

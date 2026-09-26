@@ -74,7 +74,7 @@ export default function TileGamePage() {
   // 랭킹 데이터 로드 (최소 움직임 횟수 기준)
   const loadRankings = async () => {
     try {
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, 'publicProfiles');
       const rankingQuery = query(
         usersRef,
         where('gameStats.tileGame.bestMoves', '>', 0),

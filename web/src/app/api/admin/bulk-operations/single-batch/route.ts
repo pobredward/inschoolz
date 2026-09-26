@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { BotService, PostService, CommentService, CleanupService } from '@/lib/services';
 
@@ -11,6 +12,8 @@ export const maxDuration = 60; // 60초 타임아웃 (Vercel Hobby 플랜)
  * 클라이언트에서 배치 단위로 호출하여 서버 제한 시간을 우회
  */
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   console.log('🚀 [SINGLE-BATCH] API 호출 시작');
   
   try {

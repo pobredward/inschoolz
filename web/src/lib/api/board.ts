@@ -1,3 +1,5 @@
+import { auth } from '../firebase';
+import { communityCommand } from '../community-client';
 import { 
   collection, 
   doc, 
@@ -52,7 +54,7 @@ import { serializeObject, serializeTimestamp } from '@/lib/utils';
 const updatePostAuthorInfo = async (post: any) => {
   if (!post.authorInfo?.profileImageUrl && !post.authorInfo?.isAnonymous && post.authorId) {
     try {
-      const userDoc = await getDocument('users', post.authorId);
+      const userDoc = await getDocument('publicProfiles', post.authorId);
       if (userDoc && (userDoc as any).profile) {
         post.authorInfo = {
           ...post.authorInfo,
@@ -104,7 +106,7 @@ const updatePostsAuthorInfo = async (posts: any[]) => {
   try {
     const userPromises = Array.from(userIds).map(async (userId) => {
       try {
-        const userDoc = await getDocument('users', userId);
+        const userDoc = await getDocument('publicProfiles', userId);
         if (userDoc && (userDoc as any).profile) {
           return {
             userId,
@@ -183,7 +185,7 @@ export const getBoardsByType = async (type: BoardType) => {
 // 즐겨찾는 게시판 목록 가져오기
 export const getFavoriteBoards = async (userId: string, type: BoardType) => {
   try {
-    const userDoc = await getDocument('users', userId);
+    const userDoc = await getDocument('publicProfiles', userId);
     if (!userDoc || !(userDoc as any).favorites || !(userDoc as any).favorites.boards) {
       return [];
     }
@@ -386,7 +388,7 @@ export const getPostBasicInfo = async (postId: string) => {
     // 익명이 아닌 경우 항상 최신 사용자 정보로 업데이트 (실시간 프로필 변경 반영)
     if (!post.authorInfo?.isAnonymous && post.authorId) {
       try {
-        const userDoc = await getDocument('users', post.authorId);
+        const userDoc = await getDocument('publicProfiles', post.authorId);
         if (userDoc && (userDoc as any).profile) {
           post.authorInfo = {
             ...post.authorInfo,
@@ -443,7 +445,7 @@ export const getPostDetail = async (postId: string) => {
     if (!post.authorInfo?.profileImageUrl && !post.authorInfo?.isAnonymous && post.authorId) {
       console.log('사용자 정보 업데이트 시도...');
       try {
-        const userDoc = await getDocument('users', post.authorId);
+        const userDoc = await getDocument('publicProfiles', post.authorId);
         console.log('사용자 문서:', userDoc);
         if (userDoc && (userDoc as any).profile) {
           post.authorInfo = {
@@ -515,7 +517,7 @@ export const getPostDetailOptimized = async (
     // post 조회 완료 후 user 조회와 comments 조회를 병렬로 실행
     const needsUserFetch = !post.authorInfo?.profileImageUrl && !post.authorInfo?.isAnonymous && !!post.authorId;
     const [userDoc, allComments] = await Promise.all([
-      needsUserFetch ? getDocument('users', post.authorId!) : Promise.resolve(null),
+      needsUserFetch ? getDocument('publicProfiles', post.authorId!) : Promise.resolve(null),
       includeComments ? getCommentsByPost(postId) : Promise.resolve([]),
     ]);
 
@@ -569,17 +571,8 @@ export const getPostDetailOptimized = async (
 
 // 게시글 조회수 증가 (별도 함수)
 export const incrementPostViewCount = async (postId: string): Promise<void> => {
-  try {
-    const postRef = doc(db, 'posts', postId);
-    
-    await updateDoc(postRef, {
-      'stats.viewCount': increment(1),
-      updatedAt: serverTimestamp()
-    });
-  } catch (error) {
-    console.error('조회수 증가 오류:', error);
-    // 조회수 증가 실패는 중요하지 않으므로 에러를 던지지 않음
-  }
+  if (!auth.currentUser) return;
+  await communityCommand('post.view', { postId });
 };
 
 // 게시글에 달린 댓글 가져오기 (최적화된 버전 - N+1 쿼리 문제 해결)
@@ -658,7 +651,7 @@ export const getCommentsByPost = async (postId: string) => {
         for (let i = 0; i < userIdArray.length; i += batchSize) {
           const batch = userIdArray.slice(i, i + batchSize);
           const usersQuery = query(
-            collection(db, 'users'),
+            collection(db, 'publicProfiles'),
             where('__name__', 'in', batch)
           );
           
@@ -770,266 +763,19 @@ export const getCommentsByPost = async (postId: string) => {
 
 // 게시글 작성하기
 export const createPost = async (boardCode: string, boardType: BoardType, data: PostFormData, userId: string) => {
-  try {
-    // 사용자 정보 가져오기
-    const userDoc = await getDocument('users', userId);
-    
-    if (!userDoc) {
-      throw new Error('사용자 정보를 찾을 수 없습니다.');
-    }
-    
-    // 게시판 정보 가져오기
-    const boardDoc = await getDocument('boards', boardCode) as Board | null;
-    const boardName = boardDoc?.name || boardCode;
-    
-    // 게시글 데이터 생성
-    const postData: Partial<Post> = {
-      title: data.title,
-      content: data.content,
-      authorId: userId,
-      boardCode: boardCode,
-      boardName: boardName,
-      type: boardType,
-      attachments: [],
-      tags: data.tags || [],
-      stats: {
-        viewCount: 0,
-        likeCount: 0,
-        commentCount: 0,
-        scrapCount: 0
-      },
-      status: {
-        isDeleted: false,
-        isHidden: false,
-        isBlocked: false,
-        isPinned: false
-      },
-      authorInfo: {
-        displayName: data.isAnonymous ? '익명' : (userDoc as any).profile?.userName || '사용자',
-        profileImageUrl: data.isAnonymous ? '' : (userDoc as any).profile?.profileImageUrl || '',
-        isAnonymous: data.isAnonymous
-      }
-    };
-    
-    // 학교 또는 지역 정보 설정
-    if (boardType === 'school' && (userDoc as any).school?.id) {
-      postData.schoolId = (userDoc as any).school.id;
-    } else if (boardType === 'regional' && (userDoc as any).regions) {
-      postData.regions = {
-        sido: (userDoc as any).regions.sido,
-        sigungu: (userDoc as any).regions.sigungu
-      };
-    }
-    
-    // 투표 정보 설정
-    if (data.poll && data.poll.question && data.poll.options.length > 1) {
-      postData.poll = {
-        isActive: true,
-        question: data.poll.question,
-        options: data.poll.options.map((option, index) => ({
-          text: option.text,
-          imageUrl: option.imageUrl,
-          voteCount: 0,
-          index
-        })),
-        expiresAt: data.poll.expiresAt ? data.poll.expiresAt.getTime() : undefined,
-        multipleChoice: data.poll.multipleChoice
-      };
-    }
-    
-    // 게시글 저장
-    const postId = await addDocument('posts', postData);
-    
-    // 게시판 게시글 수 증가
-    await updateDocument('boards', boardCode, {
-      'stats.postCount': increment(1)
-    });
-    
-    // 사용자 게시글 수 증가
-    await updateDocument('users', userId, {
-      'stats.postCount': increment(1)
-    });
-
-    // 경험치 부여 로직 제거 - 프론트엔드에서 처리
-    
-    return postId;
-  } catch (error) {
-    console.error('게시글 작성 오류:', error);
-    throw new Error('게시글을 작성하는 중 오류가 발생했습니다.');
-  }
+  const result = await communityCommand('post.create', { ...data, boardCode, type: boardType }, userId);
+  return result.id as string;
 };
 
 // 게시글 좋아요 토글
 export const togglePostLike = async (postId: string, userId: string) => {
-  try {
-    // 게시글 정보 가져오기 (작성자 ID 필요)
-    const postRef = doc(db, 'posts', postId);
-    const postDoc = await getDoc(postRef);
-    
-    if (!postDoc.exists()) {
-      throw new Error('게시글을 찾을 수 없습니다.');
-    }
-    
-    const postData = postDoc.data() as Post;
-    const postAuthorId = postData.authorId;
-    
-    // 좋아요 중복 체크
-    const likeRef = doc(db, 'posts', postId, 'likes', userId);
-    const likeDoc = await getDoc(likeRef);
-    const batch = writeBatch(db);
-    
-    let isLiked = false;
-    
-    if (likeDoc.exists()) {
-      // 좋아요 취소
-      batch.delete(likeRef);
-      // 게시글 좋아요 수 감소
-      batch.update(doc(db, 'posts', postId), {
-        'stats.likeCount': increment(-1)
-      });
-    } else {
-      // 좋아요 추가
-      batch.set(likeRef, {
-        createdAt: serverTimestamp()
-      });
-      // 게시글 좋아요 수 증가
-      batch.update(doc(db, 'posts', postId), {
-        'stats.likeCount': increment(1)
-      });
-      isLiked = true;
-    }
-    
-    await batch.commit();
-
-    // 좋아요 추가 시에만 경험치 지급 (좋아요 취소는 경험치 지급하지 않음)
-    if (isLiked) {
-      try {
-        const expResult = await awardExperience(userId, 'like');
-        if (expResult.success && expResult.leveledUp) {
-          console.log(`🎉 레벨업! ${expResult.oldLevel} → ${expResult.newLevel} (좋아요)`);
-        }
-      } catch (expError) {
-        console.error('좋아요 경험치 지급 오류:', expError);
-        // 경험치 지급 실패는 좋아요 자체를 실패로 처리하지 않음
-      }
-      
-      // 🆕 퀘스트 트래킹: 좋아요 받기 (작성자에게)
-      if (postAuthorId && postAuthorId !== userId) {
-        try {
-          const { trackQuestAction } = await import('@/lib/quests/questService');
-          await trackQuestAction(postAuthorId, 'get_likes');
-          console.log('✅ 퀘스트 트래킹: 좋아요 받기 (게시글 작성자)');
-        } catch (questError) {
-          console.error('❌ 퀘스트 트래킹 오류:', questError);
-        }
-      }
-    }
-    
-    return isLiked;
-  } catch (error) {
-    console.error('좋아요 토글 오류:', error);
-    throw new Error('좋아요 처리 중 오류가 발생했습니다.');
-  }
+  return communityCommand('post.like', { postId }, userId);
 };
 
 // 댓글 작성하기
 export const createComment = async (postId: string, content: string, userId: string, isAnonymous: boolean, parentId?: string) => {
-  try {
-    // 사용자 정보 가져오기
-    const userDoc = await getDocument('users', userId);
-    
-    if (!userDoc) {
-      throw new Error('사용자 정보를 찾을 수 없습니다.');
-    }
-    
-    // 댓글 데이터 생성
-    const commentData = {
-      postId,
-      content,
-      authorId: userId,
-      isAnonymous,
-      parentId: parentId || null,
-      stats: {
-        likeCount: 0
-      },
-      status: {
-        isDeleted: false,
-        isBlocked: false
-      }
-    };
-    
-    // 댓글 저장
-    const commentRef = collection(db, 'posts', postId, 'comments');
-    const commentDoc = await addDoc(commentRef, {
-      ...commentData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    
-    // 게시글 댓글 수 업데이트
-    await updateDocument('posts', postId, {
-      'stats.commentCount': increment(1)
-    });
-    
-    // 사용자 댓글 수 업데이트
-    await updateDocument('users', userId, {
-      'stats.commentCount': increment(1)
-    });
-
-    // 알림 발송 로직
-    try {
-      // 게시글 정보 조회
-      const postDoc = await getDocument('posts', postId) as any;
-      
-      if (postDoc && postDoc.authorId !== userId) {
-        // 대댓글인 경우
-        if (parentId) {
-          // 부모 댓글 작성자에게 알림
-          const parentCommentDoc = await getDoc(doc(db, 'posts', postId, 'comments', parentId));
-          
-          if (parentCommentDoc.exists()) {
-            const parentCommentData = parentCommentDoc.data();
-            const parentAuthorId = parentCommentData?.authorId;
-            
-            // 부모 댓글 작성자가 자기 자신이 아닌 경우 알림 발송
-            if (parentAuthorId && parentAuthorId !== userId) {
-              await createCommentReplyNotification(
-                parentAuthorId,
-                postId,
-                postDoc.title || '제목 없음',
-                parentId,
-                isAnonymous ? '익명' : (userDoc as any).displayName || '사용자',
-                content,
-                commentDoc.id,
-                isAnonymous
-              );
-            }
-          }
-        } else {
-          // 일반 댓글인 경우 - 게시글 작성자에게 알림
-          await createPostCommentNotification(
-            postDoc.authorId,
-            userId,
-            postId,
-            commentDoc.id,
-            postDoc.title || '제목 없음',
-            content,
-            isAnonymous
-          );
-        }
-      }
-    } catch (notificationError) {
-      // 알림 발송 실패는 댓글 작성을 방해하지 않음
-      console.error('알림 발송 실패:', notificationError);
-    }
-
-    // 경험치 부여 로직 제거 - 프론트엔드에서 처리
-    
-    return commentDoc.id;
-  } catch (error) {
-    console.error('댓글 작성 오류:', error);
-    throw new Error('댓글을 작성하는 중 오류가 발생했습니다.');
-  }
+  const result = await communityCommand('comment.create', { postId, content, isAnonymous, parentId }, userId);
+  return result.id as string;
 };
 
 // 게시판 즐겨찾기 토글
@@ -1070,31 +816,7 @@ export const toggleBoardFavorite = async (boardCode: string, boardType: BoardTyp
 
 // 댓글 수정하기
 export const updateComment = async (postId: string, commentId: string, content: string, userId: string) => {
-  try {
-    const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-    const commentDoc = await getDoc(commentRef);
-    
-    if (!commentDoc.exists()) {
-      throw new Error('댓글을 찾을 수 없습니다.');
-    }
-    
-    const commentData = commentDoc.data();
-    
-    // 권한 체크 (작성자만 수정 가능)
-    if (commentData.authorId !== userId) {
-      throw new Error('댓글을 수정할 권한이 없습니다.');
-    }
-    
-    await updateDoc(commentRef, {
-      content,
-      updatedAt: serverTimestamp()
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('댓글 수정 오류:', error);
-    throw new Error('댓글을 수정하는 중 오류가 발생했습니다.');
-  }
+  await communityCommand('comment.update', { postId, commentId, content }, userId);
 };
 
 // 대댓글 존재 여부 확인
@@ -1118,137 +840,12 @@ const hasReplies = async (postId: string, commentId: string): Promise<boolean> =
 
 // 댓글 삭제하기
 export const deleteComment = async (postId: string, commentId: string, userId: string): Promise<{ hasReplies: boolean }> => {
-  try {
-    const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-    const commentDoc = await getDoc(commentRef);
-    
-    if (!commentDoc.exists()) {
-      throw new Error('댓글을 찾을 수 없습니다.');
-    }
-    
-    const commentData = commentDoc.data();
-    
-    // 권한 체크 (작성자만 삭제 가능)
-    if (commentData.authorId !== userId) {
-      throw new Error('댓글을 삭제할 권한이 없습니다.');
-    }
-    
-    // 대댓글 존재 여부 확인
-    const hasRepliesExist = await hasReplies(postId, commentId);
-    
-    if (hasRepliesExist) {
-      // 대댓글이 있는 경우: 소프트 삭제 (내용만 변경, 카운트는 유지)
-      await updateDoc(commentRef, {
-        content: '삭제된 댓글입니다.',
-        status: {
-          ...commentData.status,
-          isDeleted: true
-        },
-        updatedAt: serverTimestamp()
-      });
-      // 대댓글이 있는 경우 카운트는 감소시키지 않음
-    } else {
-      // 대댓글이 없는 경우: 완전 삭제 및 카운트 감소
-      await deleteDoc(commentRef);
-      
-      // 게시글 댓글 수 감소 (대댓글이 없는 경우에만)
-      await updateDocument('posts', postId, {
-        'stats.commentCount': increment(-1)
-      });
-      
-      // 사용자 댓글 수 감소 (대댓글이 없는 경우에만)
-      await updateDocument('users', userId, {
-        'stats.commentCount': increment(-1)
-      });
-    }
-    
-    return { hasReplies: hasRepliesExist };
-  } catch (error) {
-    console.error('댓글 삭제 오류:', error);
-    throw new Error('댓글을 삭제하는 중 오류가 발생했습니다.');
-  }
+  return communityCommand('comment.delete', { postId, commentId }, userId);
 };
 
 // 댓글 좋아요 토글
 export const toggleCommentLike = async (postId: string, commentId: string, userId: string): Promise<{ liked: boolean; likeCount: number }> => {
-  try {
-    // 좋아요 상태 확인
-    const likeRef = doc(db, 'posts', postId, 'comments', commentId, 'likes', userId);
-    const likeDoc = await getDoc(likeRef);
-    const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-    const commentDoc = await getDoc(commentRef);
-    
-    if (!commentDoc.exists()) {
-      throw new Error('댓글을 찾을 수 없습니다.');
-    }
-    
-    const commentData = commentDoc.data();
-    const currentLikeCount = commentData.stats?.likeCount || 0;
-    const commentAuthorId = commentData.authorId; // 댓글 작성자 ID
-    
-    const batch = writeBatch(db);
-    let isLiked = false;
-    let newLikeCount = currentLikeCount;
-    
-    if (likeDoc.exists()) {
-      // 좋아요 취소
-      batch.delete(likeRef);
-      newLikeCount = Math.max(0, currentLikeCount - 1);
-      batch.update(commentRef, {
-        'stats.likeCount': newLikeCount,
-        updatedAt: serverTimestamp()
-      });
-    } else {
-      // 좋아요 추가
-      batch.set(likeRef, {
-        userId,
-        commentId,
-        postId,
-        createdAt: serverTimestamp()
-      });
-      newLikeCount = currentLikeCount + 1;
-      batch.update(commentRef, {
-        'stats.likeCount': newLikeCount,
-        updatedAt: serverTimestamp()
-      });
-      isLiked = true;
-    }
-    
-    await batch.commit();
-    
-    // 좋아요 추가 시에만 경험치 지급
-    if (isLiked) {
-      try {
-                 const { awardExperience } = await import('../experience');
-        const expResult = await awardExperience(userId, 'like');
-        if (expResult.success && expResult.leveledUp) {
-          console.log(`🎉 레벨업! ${expResult.oldLevel} → ${expResult.newLevel} (댓글 좋아요)`);
-        }
-      } catch (expError) {
-        console.error('댓글 좋아요 경험치 지급 오류:', expError);
-        // 경험치 지급 실패는 좋아요 자체를 실패로 처리하지 않음
-      }
-      
-      // 🆕 퀘스트 트래킹: 좋아요 받기 (댓글 작성자에게)
-      if (commentAuthorId && commentAuthorId !== userId) {
-        try {
-          const { trackQuestAction } = await import('@/lib/quests/questService');
-          await trackQuestAction(commentAuthorId, 'get_likes');
-          console.log('✅ 퀘스트 트래킹: 좋아요 받기 (댓글 작성자)');
-        } catch (questError) {
-          console.error('❌ 퀘스트 트래킹 오류:', questError);
-        }
-      }
-    }
-    
-    return {
-      liked: isLiked,
-      likeCount: newLikeCount
-    };
-  } catch (error) {
-    console.error('댓글 좋아요 토글 오류:', error);
-    throw new Error('댓글 좋아요 처리 중 오류가 발생했습니다.');
-  }
+  return communityCommand('comment.like', { postId, commentId }, userId);
 };
 
 // 댓글 좋아요 상태 확인
@@ -1575,86 +1172,8 @@ export const getAllPostsByRegionWithPagination = async (
 
 // 게시글 수정
 export const updatePost = async (postId: string, data: PostFormData) => {
-  try {
-    // poll 필드를 완전히 제거하여 기존 poll 데이터 보존
-    const { poll, ...dataWithoutPoll } = data;
-    console.log('🔥 Original data:', JSON.stringify(data, null, 2));
-    console.log('🔥 Data without poll:', JSON.stringify(dataWithoutPoll, null, 2));
-    
-    // 게시글 정보 가져오기
-    const postDoc = await getDocument('posts', postId);
-    
-    if (!postDoc) {
-      throw new Error('게시글을 찾을 수 없습니다.');
-    }
-
-    // 수정할 데이터 준비
-    const updateData: any = {
-      title: dataWithoutPoll.title,
-      content: dataWithoutPoll.content,
-      tags: dataWithoutPoll.tags || [],
-      updatedAt: serverTimestamp(),
-      'authorInfo.isAnonymous': dataWithoutPoll.isAnonymous
-    };
-    
-    // 익명 설정에 따른 작성자 정보 업데이트
-    if (dataWithoutPoll.isAnonymous) {
-      updateData['authorInfo.displayName'] = '익명';
-      updateData['authorInfo.profileImageUrl'] = '';
-    } else {
-      // 사용자 정보 다시 가져오기
-      const userDoc = await getDocument('users', (postDoc as any).authorId);
-      if (userDoc) {
-        updateData['authorInfo.displayName'] = (userDoc as any).profile?.userName || '사용자';
-        updateData['authorInfo.profileImageUrl'] = (userDoc as any).profile?.profileImageUrl || '';
-      }
-    }
-    
-    // poll 필드는 완전히 처리하지 않음 - 기존 상태 그대로 유지
-    // data에서 poll 필드를 제거했으므로 poll 관련 업데이트 없음
-    
-    // undefined 값들을 제거하는 함수
-    const removeUndefined = (obj: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(obj)) {
-        if (value !== undefined) {
-          if (value && typeof value === 'object' && !Array.isArray(value) && 
-              !(value as any).toDate && typeof (value as any).delete !== 'function') {
-            const cleanedNested = removeUndefined(value);
-            if (Object.keys(cleanedNested).length > 0) {
-              cleaned[key] = cleanedNested;
-            }
-          } else {
-            cleaned[key] = value;
-          }
-        }
-      }
-      return cleaned;
-    };
-    
-    // undefined 값 제거
-    console.log('🔥 updateData before cleaning:', JSON.stringify(updateData, null, 2));
-    // removeUndefined 함수를 일시적으로 비활성화하여 테스트
-    // const cleanedUpdateData = removeUndefined(updateData);
-    const cleanedUpdateData = updateData;
-    console.log('🔥 cleanedUpdateData after cleaning:', JSON.stringify(cleanedUpdateData, null, 2));
-    
-    // poll 필드가 있다면 완전히 제거 (Firebase가 처리하지 않도록)
-    if ('poll' in cleanedUpdateData) {
-      delete cleanedUpdateData.poll;
-      console.log('🔥 poll 필드를 제거했습니다.');
-    }
-    
-    console.log('🔥 Final update data:', JSON.stringify(cleanedUpdateData, null, 2));
-    
-    // 게시글 업데이트
-    await updateDocument('posts', postId, cleanedUpdateData);
-    
-    return postId;
-  } catch (error) {
-    console.error('게시글 수정 오류:', error);
-    throw new Error('게시글을 수정하는 중 오류가 발생했습니다.');
-  }
+  await communityCommand('post.update', { postId, data });
+  return postId;
 };
 
 // 안전한 게시글 수정 - poll 필드를 절대 건드리지 않음
@@ -1664,162 +1183,13 @@ export const updatePostSafe = async (postId: string, data: {
   isAnonymous: boolean;
   tags: string[];
 }) => {
-  try {
-    console.log('🔥🔥🔥 updatePostSafe called with:', { postId, data });
-    
-    // 게시글 정보 가져오기
-    const postDoc = await getDocument('posts', postId);
-    
-    if (!postDoc) {
-      throw new Error('게시글을 찾을 수 없습니다.');
-    }
-
-    // poll 필드를 포함한 기존 데이터를 완전히 보존
-    const existingData = postDoc as any;
-    const existingPoll = existingData.poll;
-    
-    console.log('🔥🔥🔥 Existing poll data:', JSON.stringify(existingPoll, null, 2));
-
-    // 업데이트할 필드들만 명시적으로 지정
-    const updateFields: Record<string, any> = {
-      title: data.title,
-      content: data.content,
-      tags: data.tags,
-      updatedAt: serverTimestamp(),
-      'authorInfo.isAnonymous': data.isAnonymous
-    };
-    
-    // 익명 설정에 따른 작성자 정보 업데이트
-    if (data.isAnonymous) {
-      updateFields['authorInfo.displayName'] = '익명';
-      updateFields['authorInfo.profileImageUrl'] = '';
-    } else {
-      // 사용자 정보 다시 가져오기
-      const userDoc = await getDocument('users', existingData.authorId);
-      if (userDoc) {
-        updateFields['authorInfo.displayName'] = (userDoc as any).profile?.userName || '사용자';
-        updateFields['authorInfo.profileImageUrl'] = (userDoc as any).profile?.profileImageUrl || '';
-      }
-    }
-    
-    console.log('🔥🔥🔥 Update fields (no poll):', JSON.stringify(updateFields, null, 2));
-    
-    // Firestore 업데이트 - poll 필드는 절대 포함하지 않음
-    const postRef = doc(db, 'posts', postId);
-    
-    console.log('🔥🔥🔥 About to call updateDoc with postRef:', postRef.path);
-    console.log('🔥🔥🔥 updateFields contains poll?', 'poll' in updateFields);
-    
-    await updateDoc(postRef, updateFields);
-    
-    console.log('🔥🔥🔥 updateDoc completed, checking result...');
-    
-    // 업데이트 후 문서 상태 확인
-    const updatedDoc = await getDoc(postRef);
-    if (updatedDoc.exists()) {
-      const updatedData = updatedDoc.data();
-      console.log('🔥🔥🔥 Document after update:', JSON.stringify(updatedData.poll, null, 2));
-    }
-    
-    console.log('🔥🔥🔥 updatePostSafe completed successfully');
-    
-    return postId;
-  } catch (error) {
-    console.error('안전한 게시글 수정 오류:', error);
-    throw new Error('게시글을 수정하는 중 오류가 발생했습니다.');
-  }
+  await communityCommand('post.update', { postId, data });
+  return postId;
 };
 
 // 게시글 스크랩 토글 (이중 저장 방식)
 export const togglePostScrap = async (postId: string, userId: string): Promise<{ scrapped: boolean; scrapCount: number }> => {
-  try {
-    // 스크랩 상태 확인
-    const scrapsRef = collection(db, 'posts', postId, 'scraps');
-    const q = query(scrapsRef, where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
-    
-    const postRef = doc(db, 'posts', postId);
-    const userRef = doc(db, 'users', userId);
-    
-    const [postDoc, userDoc] = await Promise.all([
-      getDoc(postRef),
-      getDoc(userRef)
-    ]);
-    
-    if (!postDoc.exists()) {
-      throw new Error('존재하지 않는 게시글입니다.');
-    }
-    
-    if (!userDoc.exists()) {
-      throw new Error('존재하지 않는 사용자입니다.');
-    }
-    
-    const postData = postDoc.data();
-    const userData = userDoc.data();
-    const userScraps = userData.scraps || [];
-    
-    // 트랜잭션으로 일관성 보장
-    const batch = writeBatch(db);
-    
-    if (!querySnapshot.empty) {
-      // 스크랩 취소
-      const scrapDoc = querySnapshot.docs[0];
-      batch.delete(doc(db, 'posts', postId, 'scraps', scrapDoc.id));
-      
-      // 게시글 스크랩 수 감소
-      batch.update(postRef, {
-        'stats.scrapCount': increment(-1),
-        updatedAt: serverTimestamp()
-      });
-      
-      // 사용자 스크랩 목록에서 제거
-      const updatedScraps = userScraps.filter((id: string) => id !== postId);
-      batch.update(userRef, {
-        scraps: updatedScraps,
-        updatedAt: serverTimestamp()
-      });
-      
-      await batch.commit();
-      
-      return {
-        scrapped: false,
-        scrapCount: (postData.stats?.scrapCount || 0) - 1
-      };
-    } else {
-      // 스크랩 추가
-      const newScrapRef = doc(scrapsRef);
-      batch.set(newScrapRef, {
-        userId,
-        postId,
-        createdAt: serverTimestamp()
-      });
-      
-      // 게시글 스크랩 수 증가
-      batch.update(postRef, {
-        'stats.scrapCount': increment(1),
-        updatedAt: serverTimestamp()
-      });
-      
-      // 사용자 스크랩 목록에 추가 (중복 방지)
-      const updatedScraps = userScraps.includes(postId) 
-        ? userScraps 
-        : [...userScraps, postId];
-      batch.update(userRef, {
-        scraps: updatedScraps,
-        updatedAt: serverTimestamp()
-      });
-      
-      await batch.commit();
-      
-      return {
-        scrapped: true,
-        scrapCount: (postData.stats?.scrapCount || 0) + 1
-      };
-    }
-  } catch (error) {
-    console.error('북마크 토글 오류:', error);
-    throw new Error('북마크 처리에 실패했습니다.');
-  }
+  return communityCommand('post.scrap', { postId }, userId);
 };
 
 // 좋아요 상태 확인
@@ -1901,7 +1271,7 @@ export const getScrappedPosts = async (userId: string, page = 1, pageSize = 20):
 export const getScrappedPostsCount = async (userId: string): Promise<number> => {
   try {
     // 사용자 문서에서 스크랩 목록 가져오기
-    const userDoc = await getDocument('users', userId);
+    const userDoc = await getDocument('publicProfiles', userId);
     if (!userDoc) {
       return 0;
     }
@@ -2026,7 +1396,7 @@ export const getPostDetailFast = async (postId: string) => {
     if (!post.authorInfo?.profileImageUrl && !post.authorInfo?.isAnonymous && post.authorId) {
       console.log('사용자 정보 업데이트 시도...');
       try {
-        const userDoc = await getDocument('users', post.authorId);
+        const userDoc = await getDocument('publicProfiles', post.authorId);
         console.log('사용자 문서:', userDoc);
         if (userDoc && (userDoc as any).profile) {
           post.authorInfo = {

@@ -1,3 +1,4 @@
+import { verifiedCookieUid } from '@/lib/server/auth';
 import React from "react";
 import { cache } from "react";
 import { cookies } from "next/headers";
@@ -109,7 +110,7 @@ export default async function NationalPostDetailPage({ params }: PostViewPagePro
   
   try {
     const cookieStore = await cookies();
-    const uid = cookieStore.get('uid')?.value || '';
+    const uid = await verifiedCookieUid(cookieStore.get('authToken')?.value);
 
     // Admin SDK 단일 호출: post + comments + boards + userState 완전 병렬
     const result = await getPostDetailAdminCached(postId, uid);

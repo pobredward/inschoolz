@@ -83,7 +83,7 @@ export default function MathGamePage() {
   // 랭킹 데이터 로드
   const loadRankings = async () => {
     try {
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, 'publicProfiles');
       const rankingQuery = query(
         usersRef,
         where('gameStats.mathGame.bestReactionTime', '>', 0),

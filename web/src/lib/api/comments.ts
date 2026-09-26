@@ -1,21 +1,23 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  serverTimestamp, 
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+  serverTimestamp,
   Timestamp,
   increment,
   runTransaction
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
+import { communityCommand } from '@/lib/community-client';
 import { Comment } from '@/types';
 import bcrypt from 'bcryptjs';
 
@@ -68,50 +70,10 @@ export const createAnonymousComment = async ({
   parentId?: string | null;
   ipAddress?: string;
 }): Promise<Comment> => {
-  try {
-    // 비밀번호 해시화
-    const passwordHash = await hashPassword(password);
-    
-    // 댓글 데이터 생성
-    const commentData = {
-      postId,
-      content,
-      authorId: null,
-      isAnonymous: true,
-      parentId,
-      anonymousAuthor: {
-        nickname,
-        passwordHash,
-        ipAddress: ipAddress || null,
-      },
-      stats: {
-        likeCount: 0,
-      },
-      status: {
-        isDeleted: false,
-        isBlocked: false,
-      },
-      createdAt: serverTimestamp(),
-    };
-
-    // Firestore에 댓글 추가
-    const commentRef = await addDoc(collection(db, 'posts', postId, 'comments'), commentData);
-    
-    // 게시글의 댓글 수 증가
-    const postRef = doc(db, 'posts', postId);
-    await updateDoc(postRef, {
-      'stats.commentCount': increment(1),
-    });
-
-    // 생성된 댓글 반환
-    return {
-      id: commentRef.id,
-      ...commentData,
-    } as Comment;
-  } catch (error) {
-    console.error('익명 댓글 작성 실패:', error);
-    throw new Error('댓글 작성에 실패했습니다.');
-  }
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('익명 댓글도 로그인이 필요합니다.');
+  const result = await communityCommand<{ id: string }>('comment.create', { postId, content, parentId, isAnonymous: true }, uid);
+  return { id: result.id, postId, content, authorId: uid, isAnonymous: true, parentId, stats: { likeCount: 0 }, status: { isDeleted: false, isBlocked: false }, createdAt: Date.now() } as Comment;
 };
 
 /**
@@ -122,15 +84,16 @@ export const verifyAnonymousCommentPassword = async (
   commentId: string,
   password: string
 ): Promise<boolean> => {
+  if (!auth.currentUser) return false;
   try {
     const commentDoc = await getDoc(doc(db, 'posts', postId, 'comments', commentId));
-    
+
     if (!commentDoc.exists()) {
       return false;
     }
 
     const comment = commentDoc.data() as Comment;
-    
+
     // 익명 댓글이 아니거나 비밀번호 해시가 없는 경우
     if (!comment.isAnonymous || !comment.anonymousAuthor?.passwordHash) {
       return false;
@@ -152,24 +115,7 @@ export const updateAnonymousComment = async (
   content: string,
   password: string
 ): Promise<void> => {
-  try {
-    // 비밀번호 검증
-    const isValidPassword = await verifyAnonymousCommentPassword(postId, commentId, password);
-    
-    if (!isValidPassword) {
-      throw new Error('비밀번호가 일치하지 않습니다.');
-    }
-
-    // 댓글 수정
-    const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-    await updateDoc(commentRef, {
-      content,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error('익명 댓글 수정 실패:', error);
-    throw error;
-  }
+  await communityCommand('comment.update', { postId, commentId, content });
 };
 
 /**
@@ -184,7 +130,7 @@ const hasReplies = async (postId: string, commentId: string): Promise<boolean> =
       where('status.isDeleted', '==', false),
       limit(1)
     );
-    
+
     const repliesSnapshot = await getDocs(repliesQuery);
     return !repliesSnapshot.empty;
   } catch (error) {
@@ -201,43 +147,7 @@ export const deleteAnonymousComment = async (
   commentId: string,
   password: string
 ): Promise<void> => {
-  try {
-    // 비밀번호 검증
-    const isValidPassword = await verifyAnonymousCommentPassword(postId, commentId, password);
-    
-    if (!isValidPassword) {
-      throw new Error('비밀번호가 일치하지 않습니다.');
-    }
-
-    // 대댓글 존재 여부 확인
-    const hasRepliesExist = await hasReplies(postId, commentId);
-
-    await runTransaction(db, async (transaction) => {
-      const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-      const postRef = doc(db, 'posts', postId);
-      
-      if (hasRepliesExist) {
-        // 대댓글이 있는 경우: 소프트 삭제 (내용만 변경, 카운트는 유지)
-        transaction.update(commentRef, {
-          content: '삭제된 댓글입니다.',
-          'status.isDeleted': true,
-          deletedAt: serverTimestamp(),
-        });
-        // 대댓글이 있는 경우 카운트는 감소시키지 않음
-      } else {
-        // 대댓글이 없는 경우: 완전 삭제 및 카운트 감소
-        transaction.delete(commentRef);
-        
-        // 게시글의 댓글 수 감소
-        transaction.update(postRef, {
-          'stats.commentCount': increment(-1),
-        });
-      }
-    });
-  } catch (error) {
-    console.error('익명 댓글 삭제 실패:', error);
-    throw error;
-  }
+  await communityCommand('comment.delete', { postId, commentId });
 };
 
 /**
@@ -254,4 +164,4 @@ export const getClientIP = async (): Promise<string | null> => {
     console.error('IP 주소 조회 실패:', error);
     return null;
   }
-}; 
+};

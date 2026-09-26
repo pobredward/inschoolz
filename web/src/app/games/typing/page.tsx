@@ -66,7 +66,7 @@ export default function TypingGamePage() {
   // 랭킹 데이터 로드
   const loadRankings = async () => {
     try {
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, 'publicProfiles');
       const rankingQuery = query(
         usersRef,
         where('gameStats.typingGame.bestReactionTime', '>', 0),

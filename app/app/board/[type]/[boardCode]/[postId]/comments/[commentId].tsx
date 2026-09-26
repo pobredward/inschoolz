@@ -219,7 +219,7 @@ export default function CommentDetailScreen() {
         }
       } else if (!commentData.status.isDeleted) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', commentData.authorId));
+          const userDoc = await getDoc(doc(db, 'publicProfiles', commentData.authorId));
           if (userDoc.exists()) {
             const userData = userDoc.data();
             if (userData?.profile) {
@@ -275,7 +275,7 @@ export default function CommentDetailScreen() {
           }
         } else if (!replyData.status.isDeleted) {
           try {
-            const replyUserDoc = await getDoc(doc(db, 'users', replyData.authorId));
+            const replyUserDoc = await getDoc(doc(db, 'publicProfiles', replyData.authorId));
             if (replyUserDoc.exists()) {
               const replyUserData = replyUserDoc.data();
               if (replyUserData?.profile) {

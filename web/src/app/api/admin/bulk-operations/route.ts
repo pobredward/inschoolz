@@ -1,3 +1,4 @@
+import { guardAdmin } from '@/lib/server/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { BotService, PostService, CleanupService, CommentService } from '@/lib/services';
 
@@ -31,6 +32,8 @@ globalThis.bulkOperations = operations;
  * 대량 작업 시작
  */
 export async function POST(request: NextRequest) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     console.log('🚀 [BULK-OPS] POST 요청 시작');
     
@@ -217,7 +220,9 @@ function getOperationTypeName(type: string): string {
  * GET /api/admin/bulk-operations
  * 모든 대량 작업 상태 조회
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const allOperations = Array.from(operations.values())
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())

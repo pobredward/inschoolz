@@ -1,3 +1,5 @@
+import { auth } from '../firebase';
+import { communityCommand } from '../community-client';
 import { 
   collection, 
   doc, 
@@ -70,7 +72,7 @@ interface ExtendedPost extends Omit<Post, 'boardName' | 'boardCode' | 'type'> {
  */
 export const getUserById = async (userId: string): Promise<User | null> => {
   try {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(db, auth.currentUser?.uid === userId ? 'users' : 'publicProfiles', userId);
     const userDoc = await getDoc(userRef);
     
     if (userDoc.exists()) {
@@ -92,7 +94,7 @@ export const getUserById = async (userId: string): Promise<User | null> => {
  */
 export const getUserByUserName = async (userName: string): Promise<User | null> => {
   try {
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(db, 'publicProfiles');
     const q = query(
       usersRef,
       where('profile.userName', '==', userName),
@@ -536,74 +538,7 @@ export const toggleFollow = async (
   userId: string,
   targetId: string
 ): Promise<{ isFollowing: boolean }> => {
-  try {
-    // 자기 자신을 팔로우할 수 없음
-    if (userId === targetId) {
-      throw new Error('자기 자신을 팔로우할 수 없습니다.');
-    }
-    
-    // 대상 사용자 존재 여부 확인
-    const targetUser = await getUserById(targetId);
-    if (!targetUser) {
-      throw new Error('존재하지 않는 사용자입니다.');
-    }
-    
-    // 현재 팔로우 상태 확인
-    const relationshipsRef = collection(db, 'userRelationships');
-    const q = query(
-      relationshipsRef,
-      where('userId', '==', userId),
-      where('targetId', '==', targetId),
-      where('type', '==', 'follow')
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    // 팔로우 관계가 존재하면 상태 변경 또는 제거
-    if (!querySnapshot.empty) {
-      const relationshipDoc = querySnapshot.docs[0];
-      const relationship = relationshipDoc.data() as UserRelationship;
-      
-      if (relationship.status === 'active') {
-        // 활성 상태면 비활성화 (언팔로우)
-        await updateDoc(doc(db, 'userRelationships', relationshipDoc.id), {
-          status: 'inactive',
-          updatedAt: serverTimestamp()
-        });
-        return { isFollowing: false };
-      } else {
-        // 비활성 상태면 활성화 (다시 팔로우)
-        await updateDoc(doc(db, 'userRelationships', relationshipDoc.id), {
-          status: 'active',
-          updatedAt: serverTimestamp()
-        });
-        return { isFollowing: true };
-      }
-    } else {
-      // 팔로우 관계가 없으면 새로 생성
-      const newRelationship: UserRelationship = {
-        id: '',
-        userId,
-        targetId,
-        type: 'follow',
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      const relationshipRef = await addDoc(relationshipsRef, newRelationship);
-      
-      // ID 업데이트
-      await updateDoc(relationshipRef, {
-        id: relationshipRef.id
-      });
-      
-      return { isFollowing: true };
-    }
-  } catch (error) {
-    console.error('팔로우 토글 오류:', error);
-    throw new Error('팔로우 상태를 변경하는 중 오류가 발생했습니다.');
-  }
+  return communityCommand('relationship.toggle', { targetId, type: 'follow' }, userId);
 };
 
 /**
@@ -638,93 +573,7 @@ export const toggleBlock = async (
   userId: string,
   targetId: string
 ): Promise<{ isBlocked: boolean }> => {
-  try {
-    // 자기 자신을 차단할 수 없음
-    if (userId === targetId) {
-      throw new Error('자기 자신을 차단할 수 없습니다.');
-    }
-    
-    // 대상 사용자 존재 여부 확인
-    const targetUser = await getUserById(targetId);
-    if (!targetUser) {
-      throw new Error('존재하지 않는 사용자입니다.');
-    }
-    
-    // 현재 차단 상태 확인
-    const relationshipsRef = collection(db, 'userRelationships');
-    const q = query(
-      relationshipsRef,
-      where('userId', '==', userId),
-      where('targetId', '==', targetId),
-      where('type', '==', 'block')
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    // 차단 관계가 존재하면 상태 변경 또는 제거
-    if (!querySnapshot.empty) {
-      const relationshipDoc = querySnapshot.docs[0];
-      const relationship = relationshipDoc.data() as UserRelationship;
-      
-      if (relationship.status === 'active') {
-        // 활성 상태면 비활성화 (차단 해제)
-        await updateDoc(doc(db, 'userRelationships', relationshipDoc.id), {
-          status: 'inactive',
-          updatedAt: serverTimestamp()
-        });
-        return { isBlocked: false };
-      } else {
-        // 비활성 상태면 활성화 (다시 차단)
-        await updateDoc(doc(db, 'userRelationships', relationshipDoc.id), {
-          status: 'active',
-          updatedAt: serverTimestamp()
-        });
-        return { isBlocked: true };
-      }
-    } else {
-      // 차단 관계가 없으면 새로 생성
-      const newRelationship: UserRelationship = {
-        id: '',
-        userId,
-        targetId,
-        type: 'block',
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      const relationshipRef = await addDoc(relationshipsRef, newRelationship);
-      
-      // ID 업데이트
-      await updateDoc(relationshipRef, {
-        id: relationshipRef.id
-      });
-      
-      // 차단하면 자동으로 팔로우 관계 비활성화
-      const followQ = query(
-        relationshipsRef,
-        where('userId', '==', userId),
-        where('targetId', '==', targetId),
-        where('type', '==', 'follow'),
-        where('status', '==', 'active')
-      );
-      
-      const followSnapshot = await getDocs(followQ);
-      
-      if (!followSnapshot.empty) {
-        const followDoc = followSnapshot.docs[0];
-        await updateDoc(doc(db, 'userRelationships', followDoc.id), {
-          status: 'inactive',
-          updatedAt: serverTimestamp()
-        });
-      }
-      
-      return { isBlocked: true };
-    }
-  } catch (error) {
-    console.error('차단 토글 오류:', error);
-    throw new Error('차단 상태를 변경하는 중 오류가 발생했습니다.');
-  }
+  return communityCommand('relationship.toggle', { targetId, type: 'block' }, userId);
 };
 
 /**
@@ -853,7 +702,7 @@ export const checkMultipleBlockStatus = async (
  */
 export const getUserActivitySummary = async (userId: string) => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
+    const userDoc = await getDoc(doc(db, auth.currentUser?.uid === userId ? 'users' : 'publicProfiles', userId));
     if (!userDoc.exists()) {
       throw new Error('사용자를 찾을 수 없습니다.');
     }
@@ -892,7 +741,7 @@ export const getUserActivitySummary = async (userId: string) => {
  */
 export const getUserGameStats = async (userId: string) => {
   try {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(db, 'publicProfiles', userId);
     const userDoc = await getDoc(userRef);
     
     if (!userDoc.exists()) {
@@ -928,115 +777,8 @@ export const updateUserProfile = async (
     address?: string;
   }
 ): Promise<boolean> => {
-  try {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error('사용자를 찾을 수 없습니다.');
-    }
-    
-    const updates: Record<string, FieldValue | string | number | boolean | object | null> = {};
-    
-    // 프로필 필드 업데이트
-    if (profileData.userName) {
-      updates['profile.userName'] = profileData.userName;
-    }
-    
-    if (profileData.realName !== undefined) {
-      updates['profile.realName'] = profileData.realName;
-    }
-    
-    if (profileData.gender !== undefined) {
-      updates['profile.gender'] = profileData.gender;
-    }
-    
-    if (profileData.birthYear !== undefined) {
-      updates['profile.birthYear'] = Number(profileData.birthYear) || null;
-    }
-    
-    if (profileData.birthMonth !== undefined) {
-      updates['profile.birthMonth'] = Number(profileData.birthMonth) || null;
-    }
-    
-    if (profileData.birthDay !== undefined) {
-      updates['profile.birthDay'] = Number(profileData.birthDay) || null;
-    }
-    
-    if (profileData.phoneNumber !== undefined) {
-      updates['profile.phoneNumber'] = profileData.phoneNumber;
-    }
-    
-    // 추천인 업데이트
-    if (profileData.referrerId !== undefined) {
-      updates['referrerId'] = profileData.referrerId;
-    }
-    
-    // 지역 정보 업데이트
-    if (profileData.sido || profileData.sigungu || profileData.address) {
-      // 지역 정보가 아직 없는 경우 초기화
-      if (!userDoc.data()?.regions) {
-        updates['regions'] = {
-          sido: '',
-          sigungu: '',
-          address: ''
-        };
-      }
-      
-      if (profileData.sido !== undefined) {
-        updates['regions.sido'] = profileData.sido;
-      }
-      
-      if (profileData.sigungu !== undefined) {
-        updates['regions.sigungu'] = profileData.sigungu;
-      }
-      
-      if (profileData.address !== undefined) {
-        updates['regions.address'] = profileData.address;
-      }
-    }
-    
-    // searchTokens 업데이트 (닉네임, 실명 변경 시)
-    if (profileData.userName !== undefined || profileData.realName !== undefined) {
-      const userData = userDoc.data();
-      const currentUserName = profileData.userName || userData?.profile?.userName;
-      const currentRealName = profileData.realName !== undefined ? profileData.realName : userData?.profile?.realName;
-      const currentSchoolName = userData?.school?.name;
-      
-      // 검색 토큰 재생성
-      const { generateUserSearchTokens } = await import('@/utils/search-tokens');
-      const newSearchTokens = generateUserSearchTokens(
-        currentUserName,
-        currentRealName,
-        currentSchoolName
-      );
-      
-      updates['searchTokens'] = newSearchTokens;
-    }
-    
-    // 변경된 필드가 있는 경우에만 업데이트
-    if (Object.keys(updates).length > 0) {
-      updates.updatedAt = serverTimestamp();
-      await updateDoc(userRef, updates);
-    }
-    
-    // 닉네임이 변경된 경우, 해당 사용자의 모든 게시물의 작성자 정보 업데이트
-    if (profileData.userName !== undefined) {
-      const userData = userDoc.data();
-      const newUserName = profileData.userName;
-      
-      // 익명이 아닌 게시물의 작성자 정보 업데이트
-      await updateUserPostsAuthorInfo(userId, newUserName, userData?.profile?.profileImageUrl);
-      
-      // 댓글의 작성자 정보도 업데이트 (필요시 주석 해제)
-      // await updateUserCommentsAuthorInfo(userId, newUserName, userData?.profile?.profileImageUrl);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('사용자 프로필 업데이트 오류:', error);
-    throw new Error('프로필을 업데이트하는 중 오류가 발생했습니다.');
-  }
+  await communityCommand('profile.update', profileData, userId);
+  return true;
 };
 
 /**
@@ -1075,7 +817,7 @@ export const updateProfileImage = async (
     // Firebase Storage 경로 설정
     const fileExtension = imageFile.name.split('.').pop();
     const fileName = `${userId}_${Date.now()}.${fileExtension}`;
-    const storageRef = ref(storage, `profile_images/${fileName}`);
+    const storageRef = ref(storage, `uploads/${userId}/profile/${fileName}`);
     
     // 이미지 업로드
     await uploadBytes(storageRef, imageFile);
@@ -1084,10 +826,7 @@ export const updateProfileImage = async (
     const downloadUrl = await getDownloadURL(storageRef);
     
     // Firestore 업데이트
-    await updateDoc(userRef, {
-      'profile.profileImageUrl': downloadUrl,
-      updatedAt: serverTimestamp()
-    });
+    await communityCommand('profile.update', { profileImageUrl: downloadUrl }, userId);
     
     // 이전 이미지가 있고 기본 이미지가 아니라면 삭제
     if (oldImageUrl && !oldImageUrl.includes('default-profile')) {
@@ -1911,7 +1650,7 @@ export const searchUsers = async (searchTerm: string): Promise<Array<{
       return [];
     }
 
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(db, 'publicProfiles');
     
     // userName으로 부분 일치 검색 (Firestore의 제한으로 인해 클라이언트에서 필터링)
     const q = query(
@@ -1955,36 +1694,8 @@ export const checkEmailAvailability = async (email: string): Promise<{
   isAvailable: boolean;
   message: string;
 }> => {
-  try {
-    if (!email || email.trim() === '') {
-      return { isAvailable: false, message: '이메일을 입력해주세요.' };
-    }
+  return { isAvailable: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()), message: '이메일 중복 여부는 가입 시 확인됩니다.' };
 
-    // 이메일 형식 검증 (더 엄격한 검증)
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    if (!emailRegex.test(email)) {
-      return { isAvailable: false, message: '올바른 이메일 형식이 아닙니다. (예: user@example.com)' };
-    }
-
-    // Firestore에서 중복 확인
-    const usersRef = collection(db, 'users');
-    const q = query(
-      usersRef,
-      where('email', '==', email.trim().toLowerCase()),
-      limit(1)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      return { isAvailable: false, message: '이미 가입된 이메일 주소입니다.' };
-    }
-
-    return { isAvailable: true, message: '사용 가능한 이메일입니다.' };
-  } catch (error) {
-    console.error('이메일 중복 확인 오류:', error);
-    return { isAvailable: false, message: '이메일 확인 중 오류가 발생했습니다.' };
-  }
 };
 
 /**
@@ -2011,7 +1722,7 @@ export const checkUserNameAvailability = async (userName: string): Promise<{
     }
 
     // Firestore에서 중복 확인
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(db, 'publicProfiles');
     const q = query(
       usersRef,
       where('profile.userName', '==', userName.trim()),

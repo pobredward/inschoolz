@@ -1,4 +1,5 @@
 'use client';
+import { ensureUserProfile } from '@/lib/community-client';
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -162,29 +163,8 @@ function KakaoSuccessContent() {
         }
         
         // 4. Firestore에서 사용자 정보 확인/생성
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        
-        let userRole = 'student'; // 기본값
-
-        if (userDoc.exists()) {
-          // 기존 사용자: 마지막 로그인 시간 업데이트
-          await updateDoc(doc(db, 'users', firebaseUser.uid), {
-            lastLoginAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-          
-          const userData = userDoc.data() as User;
-          userRole = userData.role;
-          console.log('✅ 기존 사용자 로그인 완료');
-        } else {
-          // 신규 사용자: Firestore에 정보 저장
-          const newUser = convertKakaoUserToFirebaseUser(kakaoUser, firebaseUser.uid);
-          await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-          
-          userRole = newUser.role;
-          console.log('✅ 신규 사용자 가입 완료');
-          toast.success('카카오 계정으로 회원가입이 완료되었습니다!');
-        }
+        const userData = await ensureUserProfile();
+        const userRole = userData.role;
 
         // 4.5. 추가 쿠키 설정 (사용자 role과 uid)
         try {
